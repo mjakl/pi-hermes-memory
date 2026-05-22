@@ -49,8 +49,6 @@ import { registerPreviewContextCommand } from "./handlers/preview-context.js";
 import { loadConfig } from "./config.js";
 import { detectProject, detectProjectSkills } from "./project.js";
 import { buildPromptContext } from "./prompt-context.js";
-import { migrateLegacyProjectMemoryDirs } from "./project-memory-migration.js";
-import { migrateExtensionRoot } from "./extension-root-migration.js";
 import { AGENT_ROOT } from "./paths.js";
 
 export function resolveProjectSkillDiscovery(
@@ -81,20 +79,8 @@ export default function (pi: ExtensionAPI) {
   const config = loadConfig();
 
   const agentRoot = AGENT_ROOT;
-  const legacyGlobalDir = path.join(agentRoot, "memory");
   const defaultGlobalDir = path.join(agentRoot, "pi-hermes-memory");
-
-  const configuredMemoryDir = config.memoryDir?.trim();
-  const pointsToLegacyMemoryDir = configuredMemoryDir
-    ? path.resolve(configuredMemoryDir) === path.resolve(legacyGlobalDir)
-    : false;
-
-  const globalDir = !configuredMemoryDir || pointsToLegacyMemoryDir
-    ? defaultGlobalDir
-    : configuredMemoryDir;
-
-  const shouldMigrateExtensionRoot = !configuredMemoryDir || pointsToLegacyMemoryDir;
-  let extensionRootMigrated = false;
+  const globalDir = config.memoryDir?.trim() || defaultGlobalDir;
 
   const store = new MemoryStore({ ...config, memoryDir: globalDir });
   const project = detectProject(config.projectsMemoryDir);
@@ -103,9 +89,6 @@ export default function (pi: ExtensionAPI) {
     globalSkillsDir: path.join(globalDir, "skills"),
     projectSkillsDir: project.memoryDir ? path.join(project.memoryDir, "skills") : null,
     projectName: project.name,
-    legacySkillsDir: path.join(legacyGlobalDir, "skills"),
-    legacyPiGlobalSkillsDir: path.join(agentRoot, "skills"),
-    migrationSentinelPath: path.join(globalDir, ".skills-migrated-to-extension-storage"),
   });
   const dbManager = new DatabaseManager(globalDir);
 
@@ -118,10 +101,6 @@ export default function (pi: ExtensionAPI) {
     };
   };
 
-  // Keep project memory available for users upgrading from the old
-  // ~/.pi/agent/<project>/ layout. This is non-destructive: legacy folders
-  // remain in place while entries are copied/merged into projects-memory/.
-  migrateLegacyProjectMemoryDirs(agentRoot, config.projectsMemoryDir);
   try {
     syncMarkdownMemoriesToSqlite(dbManager, globalDir, config.projectsMemoryDir, agentRoot);
   } catch {
@@ -137,17 +116,7 @@ export default function (pi: ExtensionAPI) {
 
   // ── 1. Load memory from disk on session start ──
   pi.on("session_start", async (_event, ctx) => {
-    if (shouldMigrateExtensionRoot && !extensionRootMigrated) {
-      try {
-        await migrateExtensionRoot(legacyGlobalDir, globalDir);
-      } catch {
-        // best effort migration only
-      }
-      extensionRootMigrated = true;
-    }
-
     refreshSkillProjectContext(ctx.cwd);
-    await skillStore.migrateLegacySkills();
     await skillStore.ensureDiscoveredRoots();
     await store.loadFromDisk();
     if (projectStore) await projectStore.loadFromDisk();

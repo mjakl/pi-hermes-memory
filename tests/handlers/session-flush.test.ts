@@ -56,9 +56,6 @@ function defaultConfig(overrides: Partial<MemoryConfig> = {}): MemoryConfig {
     flushRecentMessages: 0,
     memoryOverflowStrategy: "auto-consolidate",
     correctionDetection: true,
-    failureInjectionEnabled: true,
-    failureInjectionMaxAgeDays: 7,
-    failureInjectionMaxEntries: 5,
     nudgeToolCalls: 15,
     ...overrides,
   };

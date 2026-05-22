@@ -51,39 +51,12 @@ function importEntries(
   }
 }
 
-function scanProjectDirs(agentRoot: string, globalDir: string, projectsMemoryDir = "projects-memory"): Array<{ name: string; memoryFile: string }> {
+function scanProjectDirs(agentRoot: string, projectsMemoryDir = "projects-memory"): Array<{ name: string; memoryFile: string }> {
   const projectsRoot = path.join(agentRoot, projectsMemoryDir);
-  const projects = new Map<string, string>();
+  if (!fs.existsSync(projectsRoot)) return [];
 
-  if (fs.existsSync(projectsRoot)) {
-    for (const name of fs.readdirSync(projectsRoot)) {
-      const dir = path.join(projectsRoot, name);
-      const memoryFile = path.join(dir, MEMORY_FILE);
-      if (fs.existsSync(dir) && fs.statSync(dir).isDirectory() && fs.existsSync(memoryFile)) {
-        projects.set(name, memoryFile);
-      }
-    }
-  }
-
-  const resolvedAgentRoot = path.resolve(agentRoot);
-  const resolvedGlobalDir = path.resolve(globalDir);
-  const globalDirName = path.dirname(resolvedGlobalDir) === resolvedAgentRoot
-    ? path.basename(resolvedGlobalDir)
-    : null;
-  if (fs.existsSync(agentRoot)) {
-    for (const name of fs.readdirSync(agentRoot)) {
-      if ((globalDirName && name === globalDirName) || name === projectsMemoryDir || name === 'skills' || name.startsWith('.')) continue;
-      if (projects.has(name)) continue;
-      const dir = path.join(agentRoot, name);
-      const memoryFile = path.join(dir, MEMORY_FILE);
-      if (fs.existsSync(dir) && fs.statSync(dir).isDirectory() && fs.existsSync(memoryFile)) {
-        projects.set(name, memoryFile);
-      }
-    }
-  }
-
-  return [...projects.entries()]
-    .map(([name, memoryFile]) => ({ name, memoryFile }))
+  return fs.readdirSync(projectsRoot)
+    .map((name) => ({ name, memoryFile: path.join(projectsRoot, name, MEMORY_FILE) }))
     .filter(({ memoryFile }) => fs.existsSync(memoryFile));
 }
 
@@ -120,7 +93,7 @@ export function syncMarkdownMemoriesToSqlite(
   importFile(globalUserFile, 'user');
   importFile(globalFailureFile, 'failure');
 
-  const projects = scanProjectDirs(agentRoot, globalDir, projectsMemoryDir);
+  const projects = scanProjectDirs(agentRoot, projectsMemoryDir);
   for (const project of projects) {
     importFile(project.memoryFile, 'memory', project.name);
   }

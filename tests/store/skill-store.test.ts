@@ -1,5 +1,5 @@
 /**
- * Unit tests for SkillStore — scoped CRUD, migration, and Pi-native file layout.
+ * Unit tests for SkillStore — scoped CRUD and Pi-native file layout.
  */
 
 import * as fs from "node:fs/promises";
@@ -12,18 +12,12 @@ import { SkillStore } from "../../src/store/skill-store.js";
 let ROOT_DIR = "";
 let GLOBAL_SKILLS_DIR = "";
 let PROJECT_SKILLS_DIR = "";
-let LEGACY_SKILLS_DIR = "";
-let LEGACY_PI_GLOBAL_SKILLS_DIR = "";
-let MIGRATION_SENTINEL = "";
 
 async function makeStore(withProject = true): Promise<SkillStore> {
   return new SkillStore({
     globalSkillsDir: GLOBAL_SKILLS_DIR,
     projectSkillsDir: withProject ? PROJECT_SKILLS_DIR : null,
     projectName: withProject ? "demo-project" : null,
-    legacySkillsDir: LEGACY_SKILLS_DIR,
-    legacyPiGlobalSkillsDir: LEGACY_PI_GLOBAL_SKILLS_DIR,
-    migrationSentinelPath: MIGRATION_SENTINEL,
   });
 }
 
@@ -35,8 +29,6 @@ async function cleanSlate(): Promise<void> {
   }
   await fs.mkdir(GLOBAL_SKILLS_DIR, { recursive: true });
   await fs.mkdir(PROJECT_SKILLS_DIR, { recursive: true });
-  await fs.mkdir(LEGACY_SKILLS_DIR, { recursive: true });
-  await fs.mkdir(LEGACY_PI_GLOBAL_SKILLS_DIR, { recursive: true });
 }
 
 async function readFile(filePath: string): Promise<string> {
@@ -48,9 +40,6 @@ describe("SkillStore", { concurrency: 1 }, () => {
     ROOT_DIR = await fs.mkdtemp(path.join(os.tmpdir(), "pi-skill-test-"));
     GLOBAL_SKILLS_DIR = path.join(ROOT_DIR, "global-skills");
     PROJECT_SKILLS_DIR = path.join(ROOT_DIR, "project-skills");
-    LEGACY_SKILLS_DIR = path.join(ROOT_DIR, "legacy-skills");
-    LEGACY_PI_GLOBAL_SKILLS_DIR = path.join(ROOT_DIR, "legacy-pi-global-skills");
-    MIGRATION_SENTINEL = path.join(ROOT_DIR, ".skill-migration");
   });
 
   after(async () => {
@@ -441,122 +430,6 @@ describe("SkillStore", { concurrency: 1 }, () => {
 
       const index = await store.loadIndex();
       assert.strictEqual(index.length, 2);
-    });
-  });
-
-  describe("migration", () => {
-    it("migrates legacy memory/skills/*.md files into global Pi skills", async () => {
-      const legacyFile = path.join(LEGACY_SKILLS_DIR, "legacy-skill.md");
-      await fs.writeFile(legacyFile, [
-        "---",
-        "name: Legacy Skill",
-        "description: Legacy migrated skill",
-        "version: 2",
-        "created: 2026-01-01",
-        "updated: 2026-01-02",
-        "---",
-        "## Procedure",
-        "1. Do the legacy thing",
-      ].join("\n"), "utf-8");
-
-      const store = await makeStore();
-      const result = await store.migrateLegacySkills();
-
-      assert.strictEqual(result.migrated, 1);
-      const migratedPath = path.join(GLOBAL_SKILLS_DIR, "legacy-skill", "SKILL.md");
-      const raw = await readFile(migratedPath);
-      assert.ok(raw.includes('name: "legacy-skill"'));
-      assert.ok(raw.includes('display_name: "Legacy Skill"'));
-      assert.ok(raw.includes('description: "Legacy migrated skill"'));
-      assert.ok(raw.includes("1. Do the legacy thing"));
-    });
-
-    it("does not rerun after the sentinel is created", async () => {
-      const legacyFile = path.join(LEGACY_SKILLS_DIR, "legacy-skill.md");
-      await fs.writeFile(legacyFile, [
-        "---",
-        "name: legacy-skill",
-        "description: Legacy migrated skill",
-        "---",
-        "body",
-      ].join("\n"), "utf-8");
-
-      const store = await makeStore();
-      const first = await store.migrateLegacySkills();
-      const second = await store.migrateLegacySkills();
-
-      assert.strictEqual(first.migrated, 1);
-      assert.strictEqual(second.migrated, 0);
-    });
-
-    it("does not overwrite an existing global skill unexpectedly", async () => {
-      const existingDir = path.join(GLOBAL_SKILLS_DIR, "legacy-skill");
-      await fs.mkdir(existingDir, { recursive: true });
-      await fs.writeFile(path.join(existingDir, "SKILL.md"), [
-        "---",
-        "name: legacy-skill",
-        "description: Existing global skill",
-        "---",
-        "# Existing",
-      ].join("\n"), "utf-8");
-      await fs.writeFile(path.join(LEGACY_SKILLS_DIR, "legacy-skill.md"), [
-        "---",
-        "name: legacy-skill",
-        "description: Legacy version",
-        "---",
-        "# Legacy",
-      ].join("\n"), "utf-8");
-
-      const store = await makeStore();
-      const result = await store.migrateLegacySkills();
-
-      assert.strictEqual(result.migrated, 0);
-      assert.strictEqual(result.skipped, 1);
-
-      const raw = await readFile(path.join(existingDir, "SKILL.md"));
-      assert.ok(raw.includes("Existing global skill"));
-      assert.ok(!raw.includes("Legacy version"));
-    });
-
-    it("migrates flat markdown files under global skills root into SKILL.md folders", async () => {
-      await fs.writeFile(path.join(GLOBAL_SKILLS_DIR, "flat-legacy.md"), [
-        "---",
-        "name: flat-legacy",
-        "description: Flat legacy skill",
-        "---",
-        "# Flat Body",
-      ].join("\n"), "utf-8");
-
-      const store = await makeStore();
-      const result = await store.migrateLegacySkills();
-
-      assert.strictEqual(result.migrated, 1);
-      await assert.rejects(fs.access(path.join(GLOBAL_SKILLS_DIR, "flat-legacy.md")));
-      const migrated = await readFile(path.join(GLOBAL_SKILLS_DIR, "flat-legacy", "SKILL.md"));
-      assert.ok(migrated.includes('description: "Flat legacy skill"'));
-    });
-
-    it("does not write the sentinel when warnings occur, so migration can retry", async () => {
-      await fs.mkdir(path.join(LEGACY_SKILLS_DIR, "broken.md"), { recursive: true });
-      const legacyFile = path.join(LEGACY_SKILLS_DIR, "legacy-skill.md");
-      await fs.writeFile(legacyFile, [
-        "---",
-        "name: legacy-skill",
-        "description: Legacy migrated skill",
-        "---",
-        "body",
-      ].join("\n"), "utf-8");
-
-      const store = await makeStore();
-      const first = await store.migrateLegacySkills();
-
-      assert.ok(first.warnings.length >= 1);
-      await assert.rejects(fs.access(MIGRATION_SENTINEL));
-
-      await fs.rm(path.join(LEGACY_SKILLS_DIR, "broken.md"), { recursive: true, force: true });
-      const second = await store.migrateLegacySkills();
-      assert.strictEqual(second.migrated, 0);
-      await fs.access(MIGRATION_SENTINEL);
     });
   });
 

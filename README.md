@@ -37,19 +37,6 @@ pi install npm:pi-hermes-memory
 /learn-memory-tool
 ```
 
-## Upgrade Notes (v0.7.10)
-
-If you’re upgrading from older versions, startup now auto-migrates extension data safely:
-
-- legacy extension root: `~/.pi/agent/memory` → `~/.pi/agent/pi-hermes-memory`
-- legacy flat skills: `~/.pi/agent/pi-hermes-memory/skills/*.md` → `~/.pi/agent/pi-hermes-memory/skills/<slug>/SKILL.md`
-
-This resolves Pi skill index conflicts like:
-
-- `name "..." does not match parent directory "skills"`
-
-No manual action is needed. Launch Pi once after upgrade to let migration/normalization run.
-
 ## Features
 
 | Feature | What happens |
@@ -407,9 +394,6 @@ Create `~/.pi/agent/hermes-memory-config.json`:
   "reviewEnabled": true,
   "memoryOverflowStrategy": "auto-consolidate",
   "correctionDetection": true,
-  "failureInjectionEnabled": true,
-  "failureInjectionMaxAgeDays": 7,
-  "failureInjectionMaxEntries": 5,
   "consolidationTimeoutMs": 60000,
   "flushOnCompact": true,
   "flushOnShutdown": true,
@@ -438,9 +422,6 @@ Create `~/.pi/agent/hermes-memory-config.json`:
 | `correctionWeakPatterns` | unset | Optional case-insensitive regex sources replacing weak correction patterns; omitted preserves defaults, invalid entries are ignored |
 | `correctionNegativePatterns` | unset | Optional case-insensitive regex sources replacing negative correction patterns; omitted preserves defaults, invalid entries are ignored |
 | `correctionDirectiveWords` | unset | Optional directive words replacing the weak-pattern directive words; omitted preserves defaults |
-| `failureInjectionEnabled` | `true` | Include recent failure memories in legacy Markdown prompt formatting helpers |
-| `failureInjectionMaxAgeDays` | `7` | Maximum age in days for formatted recent failure memories |
-| `failureInjectionMaxEntries` | `5` | Maximum number of failure memories to format |
 | `flushOnCompact` | `true` | Flush memories before Pi compacts context |
 | `flushOnShutdown` | `true` | Flush memories when session ends |
 | `flushMinTurns` | `6` | Minimum turns before flush triggers |
@@ -459,7 +440,6 @@ Create `~/.pi/agent/hermes-memory-config.json`:
 │   │   │   └── SKILL.md
 │   │   └── testing-checklist/
 │   │       └── SKILL.md
-│   └── .skills-migrated-to-extension-storage
 ├── projects-memory/       ← ALL project-scoped memories (one subfolder per project)
 │   ├── my-project/
 │   │   ├── MEMORY.md

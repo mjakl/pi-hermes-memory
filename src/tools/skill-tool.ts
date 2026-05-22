@@ -48,11 +48,11 @@ function buildStructuredSkillBody(
 }
 
 const SKILL_ID_PARAM = Type.String({
-  description: "Stable skill id for view/patch/update/delete. e.g., 'global:debug-typescript-errors' or 'project:my-repo:release-app'. Legacy alias 'edit' also accepts this field.",
+  description: "Stable skill id for view/patch/update/delete. e.g., 'global:debug-typescript-errors' or 'project:my-repo:release-app'.",
 });
 
 const SKILL_TOOL_PARAMETERS = Type.Object({
-  action: StringEnum(["create", "view", "patch", "update", "edit", "delete"] as const, {
+  action: StringEnum(["create", "view", "patch", "update", "delete"] as const, {
     description: "The skill action to perform.",
   }),
   name: Type.Optional(Type.String({
@@ -60,7 +60,7 @@ const SKILL_TOOL_PARAMETERS = Type.Object({
   })),
   skill_id: Type.Optional(SKILL_ID_PARAM),
   description: Type.Optional(Type.String({
-    description: "One-line description of when to use this skill. Required for create; optional for update/edit.",
+    description: "One-line description of when to use this skill. Required for create; optional for update.",
   })),
   scope: Type.Optional(StringEnum(["global", "project"] as const, {
     description: "Required for create. Use 'global' for portable procedures and 'project' for repo-specific workflows.",
@@ -69,19 +69,19 @@ const SKILL_TOOL_PARAMETERS = Type.Object({
     description: "Required for patch. Section header to patch. e.g., 'Procedure', 'Pitfalls'.",
   })),
   content: Type.Optional(Type.String({
-    description: "Raw markdown body for create/update/edit, or new section content for patch. For create/update/edit you can provide this or the structured fields below.",
+    description: "Raw markdown body for create/update, or new section content for patch. For create/update you can provide this or the structured fields below.",
   })),
   when_to_use: Type.Optional(Type.String({
-    description: "Structured create/update/edit field. Explain when this skill should be used and where its boundaries are.",
+    description: "Structured create/update field. Explain when this skill should be used and where its boundaries are.",
   })),
   procedure_steps: Type.Optional(Type.Array(Type.String(), {
-    description: "Structured create/update/edit field. Ordered concrete steps for the workflow.",
+    description: "Structured create/update field. Ordered concrete steps for the workflow.",
   })),
   pitfalls: Type.Optional(Type.Array(Type.String(), {
-    description: "Structured create/update/edit field. Optional common mistakes, caveats, or failure modes to avoid.",
+    description: "Structured create/update field. Optional common mistakes, caveats, or failure modes to avoid.",
   })),
   verification_steps: Type.Optional(Type.Array(Type.String(), {
-    description: "Structured create/update/edit field. Concrete checks that confirm the workflow succeeded.",
+    description: "Structured create/update field. Concrete checks that confirm the workflow succeeded.",
   })),
 }, { additionalProperties: false });
 
@@ -102,7 +102,7 @@ export function registerSkillTool(pi: ExtensionAPI, store: SkillStore): void {
     parameters: SKILL_TOOL_PARAMETERS,
     async execute(toolCallId, params, signal, onUpdate, ctx) {
       const skillParams = params as {
-        action: "create" | "view" | "patch" | "update" | "edit" | "delete";
+        action: "create" | "view" | "patch" | "update" | "delete";
         name?: string;
         skill_id?: string;
         description?: string;
@@ -226,12 +226,10 @@ export function registerSkillTool(pi: ExtensionAPI, store: SkillStore): void {
           result = await store.patch(skill_id, section, content);
           break;
 
-        case "update":
-        case "edit": {
-          const updateActionLabel = action === "edit" ? "edit" : "update";
+        case "update": {
           if (!skill_id) {
             return {
-              content: [{ type: "text", text: JSON.stringify({ success: false, error: `skill_id is required for '${updateActionLabel}' action.` }) }],
+              content: [{ type: "text", text: JSON.stringify({ success: false, error: "skill_id is required for 'update' action." }) }],
               details: {},
             };
           }
@@ -240,7 +238,7 @@ export function registerSkillTool(pi: ExtensionAPI, store: SkillStore): void {
           const nextBody = updateBodyResult.body ?? content?.trim() ?? "";
           if (!nextDescription && !nextBody) {
             return {
-              content: [{ type: "text", text: JSON.stringify({ success: false, error: `Provide description, content, or structured fields for '${updateActionLabel}'.` }) }],
+              content: [{ type: "text", text: JSON.stringify({ success: false, error: "Provide description, content, or structured fields for 'update'." }) }],
               details: {},
             };
           }

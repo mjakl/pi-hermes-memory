@@ -25,8 +25,6 @@ async function makeStore(withProject = true): Promise<SkillStore> {
     globalSkillsDir: GLOBAL_SKILLS_DIR,
     projectSkillsDir: withProject ? PROJECT_SKILLS_DIR : null,
     projectName: withProject ? "demo-project" : null,
-    legacySkillsDir: path.join(ROOT_DIR, "legacy-skills"),
-    migrationSentinelPath: path.join(ROOT_DIR, ".skill-migration"),
   });
 }
 
@@ -273,7 +271,7 @@ describe("registerSkillTool", () => {
     await cleanup();
   });
 
-  it("update aliases to full skill rewrite", async () => {
+  it("update performs a full skill rewrite", async () => {
     let captured: any;
     const mockPi = {
       registerTool: (def: any) => { captured = def; },
@@ -326,33 +324,6 @@ describe("registerSkillTool", () => {
     assert.match(updated?.body || "", /## When to Use/);
     assert.match(updated?.body || "", /Perform the new sequence/);
     assert.match(updated?.body || "", /No notable pitfalls recorded yet/);
-
-    await cleanup();
-  });
-
-  it("legacy edit alias still rewrites the skill", async () => {
-    let captured: any;
-    const mockPi = {
-      registerTool: (def: any) => { captured = def; },
-    } as any;
-
-    const store = await makeStore();
-    const created = await store.create("legacy-skill", "Old desc", "## Old body", "global");
-    registerSkillTool(mockPi, store);
-
-    const result = await captured.execute("tc-1", {
-      action: "edit",
-      skill_id: created.skillId,
-      description: "Legacy desc",
-      content: "## Legacy body",
-    }, undefined, undefined, undefined);
-
-    const parsed = JSON.parse(result.content[0].text);
-    assert.strictEqual(parsed.success, true);
-
-    const updated = await store.loadSkill(created.skillId!);
-    assert.strictEqual(updated?.description, "Legacy desc");
-    assert.match(updated?.body || "", /Legacy body/);
 
     await cleanup();
   });

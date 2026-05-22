@@ -46,12 +46,6 @@ export interface MemoryConfig {
   correctionNegativePatterns?: string[];
   /** Override directive words used after weak correction patterns. Missing = defaults; [] = none. */
   correctionDirectiveWords?: string[];
-  /** Inject recent failure memories into the system prompt. Default: true */
-  failureInjectionEnabled: boolean;
-  /** Maximum age in days for injected failure memories. Default: 7 */
-  failureInjectionMaxAgeDays: number;
-  /** Maximum number of failure memories to inject. Default: 5 */
-  failureInjectionMaxEntries: number;
   /** Tool calls before triggering background review (in addition to turn count). Default: 15 */
   nudgeToolCalls: number;
   /** Maximum time in milliseconds for auto-consolidation to complete. Default: 60000 */
@@ -79,11 +73,6 @@ export interface MemoryResult {
   evicted_entries?: string[];
   evicted_count?: number;
   matches?: string[];
-}
-
-export interface MemorySnapshot {
-  memory: string;
-  user: string;
 }
 
 export interface ConsolidationResult {

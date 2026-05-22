@@ -26,9 +26,6 @@ interface SkillStoreOptions {
   globalSkillsDir?: string;
   projectSkillsDir?: string | null;
   projectName?: string | null;
-  legacySkillsDir?: string;
-  legacyPiGlobalSkillsDir?: string;
-  migrationSentinelPath?: string;
 }
 
 interface SkillLocation {
@@ -40,29 +37,16 @@ interface SkillLocation {
   projectName?: string;
 }
 
-export interface LegacySkillMigrationResult {
-  migrated: number;
-  skipped: number;
-  warnings: string[];
-}
-
 export class SkillStore {
   private globalSkillsDir: string;
   private projectSkillsDir: string | null;
   private projectName: string | null;
-  private legacySkillsDir: string;
-  private legacyPiGlobalSkillsDir: string;
-  private migrationSentinelPath: string;
 
   constructor(options: SkillStoreOptions = {}) {
     const agentRoot = path.join(os.homedir(), ".pi", "agent");
     this.globalSkillsDir = options.globalSkillsDir ?? path.join(agentRoot, "skills");
     this.projectSkillsDir = options.projectSkillsDir ?? null;
     this.projectName = options.projectName ?? null;
-    this.legacySkillsDir = options.legacySkillsDir ?? path.join(agentRoot, "memory", "skills");
-    this.legacyPiGlobalSkillsDir = options.legacyPiGlobalSkillsDir ?? path.join(agentRoot, "skills");
-    this.migrationSentinelPath = options.migrationSentinelPath
-      ?? path.join(agentRoot, "pi-hermes-memory", ".skills-migrated-to-extension-storage");
   }
 
   getGlobalSkillsDir(): string {
@@ -86,160 +70,6 @@ export class SkillStore {
     await fs.mkdir(this.globalSkillsDir, { recursive: true });
     if (this.projectSkillsDir) {
       await fs.mkdir(this.projectSkillsDir, { recursive: true });
-    }
-  }
-
-  async migrateLegacySkills(): Promise<LegacySkillMigrationResult> {
-    const result: LegacySkillMigrationResult = { migrated: 0, skipped: 0, warnings: [] };
-
-    // Always normalize flat markdown files under the global skills root,
-    // even when a previous migration sentinel already exists.
-    await this.migrateFlatMarkdownInGlobalSkillsDir(result);
-
-    if (await exists(this.migrationSentinelPath)) return result;
-
-    await fs.mkdir(path.dirname(this.migrationSentinelPath), { recursive: true });
-
-    try {
-      await this.migrateLegacyMarkdownSkills(result);
-      await this.migrateLegacyPiGlobalSkillDirs(result);
-    } finally {
-      if (result.warnings.length === 0) {
-        await fs.writeFile(this.migrationSentinelPath, `${new Date().toISOString()}\n`, "utf-8");
-      }
-    }
-
-    return result;
-  }
-
-  private async migrateLegacyMarkdownSkills(result: LegacySkillMigrationResult): Promise<void> {
-    if (!await exists(this.legacySkillsDir)) return;
-
-    const files = (await fs.readdir(this.legacySkillsDir))
-      .filter((file) => file.endsWith(".md"))
-      .sort();
-
-    for (const file of files) {
-      const legacyPath = path.join(this.legacySkillsDir, file);
-      try {
-        const raw = await fs.readFile(legacyPath, "utf-8");
-        const parsed = parseFrontmatter(raw);
-        const fallbackSlug = slugify(path.basename(file, ".md"));
-        const slug = slugify(parsed.meta.name || fallbackSlug);
-        if (!slug) {
-          result.skipped++;
-          continue;
-        }
-
-        const targetPath = path.join(this.globalSkillsDir, slug, "SKILL.md");
-        if (await exists(targetPath)) {
-          result.skipped++;
-          continue;
-        }
-
-        const skillDoc = {
-          name: slug,
-          displayName: parsed.meta.display_name?.trim() || parsed.meta.name?.trim() || undefined,
-          description: parsed.meta.description?.trim() || `Migrated legacy skill: ${slug}`,
-          version: Number.parseInt(parsed.meta.version || "1", 10) || 1,
-          created: parsed.meta.created || today(),
-          updated: parsed.meta.updated || today(),
-          body: parsed.body || `# ${slug}\n`,
-        };
-
-        await fs.mkdir(path.dirname(targetPath), { recursive: true });
-        await this.atomicWrite(targetPath, formatFrontmatter(skillDoc));
-        result.migrated++;
-      } catch (error) {
-        result.warnings.push(`${file}: ${error instanceof Error ? error.message : String(error)}`);
-      }
-    }
-  }
-
-  private async migrateFlatMarkdownInGlobalSkillsDir(result: LegacySkillMigrationResult): Promise<void> {
-    if (!await exists(this.globalSkillsDir)) return;
-
-    const files = (await fs.readdir(this.globalSkillsDir))
-      .filter((file) => file.endsWith(".md") && file !== "SKILL.md")
-      .sort();
-
-    for (const file of files) {
-      const legacyPath = path.join(this.globalSkillsDir, file);
-      try {
-        const raw = await fs.readFile(legacyPath, "utf-8");
-        const parsed = parseFrontmatter(raw);
-        const fallbackSlug = slugify(path.basename(file, ".md"));
-        const slug = slugify(parsed.meta.name || fallbackSlug);
-        if (!slug) {
-          result.skipped++;
-          continue;
-        }
-
-        const targetPath = path.join(this.globalSkillsDir, slug, "SKILL.md");
-        if (await exists(targetPath)) {
-          await fs.rm(legacyPath, { force: true });
-          result.skipped++;
-          continue;
-        }
-
-        const skillDoc = {
-          name: slug,
-          displayName: parsed.meta.display_name?.trim() || parsed.meta.name?.trim() || undefined,
-          description: parsed.meta.description?.trim() || `Migrated legacy skill: ${slug}`,
-          version: Number.parseInt(parsed.meta.version || "1", 10) || 1,
-          created: parsed.meta.created || today(),
-          updated: parsed.meta.updated || today(),
-          body: parsed.body || `# ${slug}\n`,
-        };
-
-        await fs.mkdir(path.dirname(targetPath), { recursive: true });
-        await this.atomicWrite(targetPath, formatFrontmatter(skillDoc));
-        await fs.rm(legacyPath, { force: true });
-        result.migrated++;
-      } catch (error) {
-        result.warnings.push(`${file}: ${error instanceof Error ? error.message : String(error)}`);
-      }
-    }
-  }
-
-  private async migrateLegacyPiGlobalSkillDirs(result: LegacySkillMigrationResult): Promise<void> {
-    if (path.resolve(this.legacyPiGlobalSkillsDir) === path.resolve(this.globalSkillsDir)) return;
-    if (!await exists(this.legacyPiGlobalSkillsDir)) return;
-
-    const entries = await fs.readdir(this.legacyPiGlobalSkillsDir, { withFileTypes: true });
-    for (const entry of entries) {
-      if (!entry.isDirectory() || entry.name.startsWith(".")) continue;
-
-      const sourceDir = path.join(this.legacyPiGlobalSkillsDir, entry.name);
-      const sourceSkill = path.join(sourceDir, "SKILL.md");
-      if (!await exists(sourceSkill)) continue;
-
-      const targetDir = path.join(this.globalSkillsDir, entry.name);
-      const targetSkill = path.join(targetDir, "SKILL.md");
-      if (await exists(targetSkill)) {
-        result.skipped++;
-        continue;
-      }
-
-      try {
-        const raw = await fs.readFile(sourceSkill, "utf-8");
-        const parsed = parseFrontmatter(raw);
-        const hasExtensionManagedMeta = Boolean(parsed.meta.display_name)
-          && Boolean(parsed.meta.created)
-          && Boolean(parsed.meta.updated)
-          && /^\d+$/.test(parsed.meta.version ?? "");
-
-        if (!hasExtensionManagedMeta) {
-          result.skipped++;
-          continue;
-        }
-
-        await fs.mkdir(path.dirname(targetDir), { recursive: true });
-        await fs.rename(sourceDir, targetDir);
-        result.migrated++;
-      } catch (error) {
-        result.warnings.push(`${entry.name}: ${error instanceof Error ? error.message : String(error)}`);
-      }
     }
   }
 

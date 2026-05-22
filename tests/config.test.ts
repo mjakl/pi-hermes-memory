@@ -26,9 +26,6 @@ describe("loadConfig", () => {
     assert.strictEqual(config.flushMinTurns, 6);
     assert.strictEqual(config.flushRecentMessages, 0);
     assert.strictEqual(config.memoryOverflowStrategy, "auto-consolidate");
-    assert.strictEqual(config.failureInjectionEnabled, true);
-    assert.strictEqual(config.failureInjectionMaxAgeDays, 7);
-    assert.strictEqual(config.failureInjectionMaxEntries, 5);
     assert.strictEqual(config.projectsMemoryDir, "projects-memory");
   });
 
@@ -42,9 +39,6 @@ describe("loadConfig", () => {
       nudgeInterval: 15,
       reviewRecentMessages: 25,
       flushRecentMessages: 40,
-      failureInjectionEnabled: false,
-      failureInjectionMaxAgeDays: 30,
-      failureInjectionMaxEntries: 2,
       projectsMemoryDir: "my-memory",
     }));
     const config = loadConfig(TEST_CONFIG_PATH);
@@ -54,9 +48,6 @@ describe("loadConfig", () => {
     assert.strictEqual(config.nudgeInterval, 15);
     assert.strictEqual(config.reviewRecentMessages, 25);
     assert.strictEqual(config.flushRecentMessages, 40);
-    assert.strictEqual(config.failureInjectionEnabled, false);
-    assert.strictEqual(config.failureInjectionMaxAgeDays, 30);
-    assert.strictEqual(config.failureInjectionMaxEntries, 2);
     assert.strictEqual(config.projectsMemoryDir, "my-memory");
     // Unset values use defaults
     assert.strictEqual(config.userCharLimit, 5000);
@@ -72,9 +63,6 @@ describe("loadConfig", () => {
     assert.strictEqual(config.memoryCharLimit, 5000); // default
     assert.strictEqual(config.reviewRecentMessages, 0);
     assert.strictEqual(config.flushRecentMessages, 0);
-    assert.strictEqual(config.failureInjectionEnabled, true);
-    assert.strictEqual(config.failureInjectionMaxAgeDays, 7);
-    assert.strictEqual(config.failureInjectionMaxEntries, 5);
     assert.strictEqual(config.projectsMemoryDir, "projects-memory");
   });
 

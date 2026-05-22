@@ -11,8 +11,6 @@ describe("resources_discover skill path resolution", () => {
       globalSkillsDir: "/tmp/global-skills",
       projectSkillsDir: null,
       projectName: null,
-      legacySkillsDir: "/tmp/legacy-skills",
-      migrationSentinelPath: "/tmp/.skills-migrated",
     });
 
     const handlers: Record<string, Function> = {};
@@ -37,8 +35,6 @@ describe("resources_discover skill path resolution", () => {
       globalSkillsDir: "/tmp/global-skills",
       projectSkillsDir: null,
       projectName: null,
-      legacySkillsDir: "/tmp/legacy-skills",
-      migrationSentinelPath: "/tmp/.skills-migrated",
     });
 
     const cwd = "/tmp/demo-repo";
@@ -55,8 +51,6 @@ describe("resources_discover skill path resolution", () => {
       globalSkillsDir: "/tmp/global-skills",
       projectSkillsDir: "/tmp/old-project",
       projectName: "old-project",
-      legacySkillsDir: "/tmp/legacy-skills",
-      migrationSentinelPath: "/tmp/.skills-migrated",
     });
 
     const resource = resolveProjectSkillDiscovery(store, "projects-memory", os.homedir());

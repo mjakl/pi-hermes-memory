@@ -71,9 +71,6 @@ const defaultConfig = {
   projectCharLimit: 5000,
   memoryOverflowStrategy: "auto-consolidate",
   correctionDetection: true,
-  failureInjectionEnabled: true,
-  failureInjectionMaxAgeDays: 7,
-  failureInjectionMaxEntries: 5,
   nudgeToolCalls: 15,
 };
 

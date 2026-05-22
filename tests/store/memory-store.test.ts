@@ -39,9 +39,6 @@ function makeConfig(overrides?: Partial<MemoryConfig>): MemoryConfig {
     flushMinTurns: 6,
     memoryOverflowStrategy: "reject",
     correctionDetection: false,
-    failureInjectionEnabled: true,
-    failureInjectionMaxAgeDays: 7,
-    failureInjectionMaxEntries: 5,
     nudgeToolCalls: 15,
     memoryDir: MEMORY_DIR,
     ...overrides,
@@ -66,17 +63,6 @@ async function writeRaw(filePath: string, content: string): Promise<void> {
 /** Delete a file, ignoring errors. */
 async function removeFile(filePath: string): Promise<void> {
   try { await fs.unlink(filePath); } catch { /* ignore */ }
-}
-
-function dateDaysAgo(days: number): string {
-  const date = new Date();
-  date.setDate(date.getDate() - days);
-  return date.toISOString().split("T")[0];
-}
-
-function failureEntry(text: string, createdDaysAgo = 0): string {
-  const date = dateDaysAgo(createdDaysAgo);
-  return `${text} <!-- created=${date}, last=${date} -->`;
 }
 
 // ─── Tests ───
@@ -512,119 +498,6 @@ describe("MemoryStore", { concurrency: 1 }, () => {
 
       const entries = store.getMemoryEntries();
       assert.deepEqual(entries, [entry1, entry2, entry3]);
-    });
-  });
-
-  // ─── formatForSystemPrompt() tests ───
-
-  describe("formatForSystemPrompt()", () => {
-    it("returns frozen snapshot — add after load does not change it", async () => {
-      await writeRaw(memoryPath, `${TEST_MARKER} original note`);
-
-      const store = new MemoryStore(makeConfig());
-      await store.loadFromDisk();
-
-      const before = store.formatForSystemPrompt();
-      assert.ok(before.includes(`${TEST_MARKER} original note`));
-
-      // Add a new entry — this should NOT affect the snapshot
-      await store.add("memory", `${TEST_MARKER} new note after load`);
-
-      const after = store.formatForSystemPrompt();
-      assert.equal(before, after, "Snapshot should not change after add");
-      assert.ok(!after.includes(`${TEST_MARKER} new note after load`));
-    });
-
-    it("returns empty string when no entries", async () => {
-      // beforeEach cleaned slate — no entries exist
-      const store = new MemoryStore(makeConfig());
-      await store.loadFromDisk();
-
-      const result = store.formatForSystemPrompt();
-      assert.equal(result, "");
-    });
-
-    it("injects recent failure memories by default", async () => {
-      await writeRaw(failurePath, [
-        failureEntry(`${TEST_MARKER} failure 1`),
-        failureEntry(`${TEST_MARKER} failure 2`),
-        failureEntry(`${TEST_MARKER} failure 3`),
-        failureEntry(`${TEST_MARKER} failure 4`),
-        failureEntry(`${TEST_MARKER} failure 5`),
-        failureEntry(`${TEST_MARKER} failure 6`),
-      ].join(ENTRY_DELIMITER));
-
-      const store = new MemoryStore(makeConfig());
-      await store.loadFromDisk();
-
-      const result = store.formatForSystemPrompt();
-      assert.ok(result.includes("RECENT FAILURES & LESSONS"));
-      assert.ok(result.includes(`${TEST_MARKER} failure 1`));
-      assert.ok(result.includes(`${TEST_MARKER} failure 5`));
-      assert.ok(!result.includes(`${TEST_MARKER} failure 6`), "default should preserve existing first-5 slice behavior");
-    });
-
-    it("does not inject failure memories when disabled", async () => {
-      await writeRaw(memoryPath, `${TEST_MARKER} regular memory`);
-      await writeRaw(failurePath, failureEntry(`${TEST_MARKER} disabled failure`));
-
-      const store = new MemoryStore(makeConfig({ failureInjectionEnabled: false }));
-      await store.loadFromDisk();
-
-      const result = store.formatForSystemPrompt();
-      assert.ok(result.includes(`${TEST_MARKER} regular memory`));
-      assert.ok(!result.includes("RECENT FAILURES & LESSONS"));
-      assert.ok(!result.includes(`${TEST_MARKER} disabled failure`));
-    });
-
-    it("respects configured failure injection max entries", async () => {
-      await writeRaw(failurePath, [
-        failureEntry(`${TEST_MARKER} max entry 1`),
-        failureEntry(`${TEST_MARKER} max entry 2`),
-        failureEntry(`${TEST_MARKER} max entry 3`),
-      ].join(ENTRY_DELIMITER));
-
-      const store = new MemoryStore(makeConfig({ failureInjectionMaxEntries: 2 }));
-      await store.loadFromDisk();
-
-      const result = store.formatForSystemPrompt();
-      assert.ok(result.includes(`${TEST_MARKER} max entry 1`));
-      assert.ok(result.includes(`${TEST_MARKER} max entry 2`));
-      assert.ok(!result.includes(`${TEST_MARKER} max entry 3`));
-    });
-
-    it("respects configured failure injection max age days", async () => {
-      await writeRaw(failurePath, [
-        failureEntry(`${TEST_MARKER} recent failure`, 1),
-        failureEntry(`${TEST_MARKER} old failure`, 3),
-      ].join(ENTRY_DELIMITER));
-
-      const store = new MemoryStore(makeConfig({ failureInjectionMaxAgeDays: 2 }));
-      await store.loadFromDisk();
-
-      const result = store.formatForSystemPrompt();
-      assert.ok(result.includes(`${TEST_MARKER} recent failure`));
-      assert.ok(!result.includes(`${TEST_MARKER} old failure`));
-    });
-
-    it("includes both memory and user blocks when both have entries", async () => {
-      await writeRaw(memoryPath, `${TEST_MARKER} mem data`);
-      await writeRaw(userPath, `${TEST_MARKER} user data`);
-
-      const store = new MemoryStore(makeConfig());
-      await store.loadFromDisk();
-
-      const result = store.formatForSystemPrompt();
-      // Content should be present inside fenced blocks
-      assert.ok(result.includes("<memory-context>"), "should use context fencing");
-      assert.ok(result.includes("PERSISTENT MEMORY"), "should have guard note");
-      assert.ok(result.includes("NOT new user input"), "should disclaim as not user input");
-      assert.ok(result.includes("END MEMORY"), "should close fence");
-      assert.ok(result.includes("</memory-context>"), "should close XML tag");
-      assert.ok(result.includes("MEMORY"), "should contain MEMORY header");
-      assert.ok(result.includes("USER PROFILE"), "should contain USER PROFILE header");
-      assert.ok(result.includes(`${TEST_MARKER} mem data`));
-      assert.ok(result.includes(`${TEST_MARKER} user data`));
     });
   });
 
