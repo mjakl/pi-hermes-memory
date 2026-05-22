@@ -197,7 +197,7 @@ export default function (pi: ExtensionAPI) {
   registerPreviewContextCommand(pi, store, projectStore, projectName, config);
 
   // ── 10. SQLite session search + extended memory ──
-  registerSessionSearchTool(pi, dbManager, config.sessionSearch ?? { variant: "legacy" });
+  registerSessionSearchTool(pi, dbManager);
   registerMemorySearchTool(pi, dbManager);
   registerIndexSessionsCommand(pi);
 

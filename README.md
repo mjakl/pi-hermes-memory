@@ -284,8 +284,6 @@ Session history is indexed automatically on session shutdown. To bulk-import exi
 /memory-index-sessions
 ```
 
-For users who prefer source anchors over snippets, `sessionSearch.variant` can be set to `anchors`. In that opt-in mode, the same `session_search` tool reads session JSONL files directly and accepts a Markdown request with fields such as `from`, `to`, `cwd`, and `limit`, plus `all`, `any`, and `exclude` lists. It returns plain text with `count`, an optional `message`, and compact `path:startLine-endLine` style anchors with short reasons instead of summaries or previews.
-
 ### Extended Memory Store
 
 The extension keeps Markdown memory as the human-readable source of truth, and mirrors successful writes into the SQLite-backed search store used by `memory_search`.
@@ -347,7 +345,7 @@ This means skills build up naturally over time without you having to ask.
 | Command | What it does |
 |---|---|
 | `/memory-insights` | Shows everything stored in memory and user profile |
-| `/memory-skills` | Opens an interactive skills manager for search, multi-select, move, and delete |
+| `/memory-skills` | Lists skills and offers simple view/move/delete actions |
 | `/memory-consolidate` | Manually trigger memory consolidation to free space |
 | `/memory-interview` | Answer a few questions to pre-fill your user profile |
 | `/memory-switch-project` | List all project memories and their entry counts |
@@ -376,34 +374,20 @@ This means skills build up naturally over time without you having to ask.
 3. codes primarily in TypeScript
 ```
 
-### `/memory-skills` Manager
+### `/memory-skills`
 
-`/memory-skills` now opens an interactive TUI modal for skill management.
+`/memory-skills` shows managed global/project skills plus external Pi skills discovered at runtime.
 
-Features:
-- fuzzy search by skill name
-- single-list view with scope badges (`[G]` global, `[P]` project)
-- multi-select with spacebar
-- batch move to global or current project
-- batch delete with one confirmation
-- inline action summaries for partial success/conflicts
+You can also call focused actions directly:
 
-Keybindings:
-- `↑` / `↓` — move focus
-- `space` — toggle selection
-- `/` — focus search
-- `tab` — switch between search and list
-- `g` — move selected skills to global
-- `p` — move selected skills to project
-- `d` — delete selected skills
-- `a` — select all filtered skills
-- `n` — clear selection
-- `esc` — close the modal
+```text
+/memory-skills view <skill_id>
+/memory-skills move <skill_id> global
+/memory-skills move <skill_id> project
+/memory-skills delete <skill_id>
+```
 
-Move behavior:
-- moves are **conflict-safe**
-- if the destination already contains the same slug, the conflicting skill stays in place
-- batch moves use partial-success semantics: non-conflicting skills move, blocked skills are reported in the summary
+In interactive mode, the command uses Pi's built-in selectors for simple view/move/delete actions. External skills are shown as read-only because they are managed outside pi-hermes-memory.
 
 ## Configuration
 
@@ -418,7 +402,6 @@ Create `~/.pi/agent/hermes-memory-config.json`:
   "projectCharLimit": 5000,
   "memoryDir": "~/.pi/agent/pi-hermes-memory",
   "projectsMemoryDir": "projects-memory",
-  "sessionSearch": { "variant": "legacy" },
   "nudgeInterval": 10,
   "nudgeToolCalls": 15,
   "reviewRecentMessages": 0,
@@ -447,7 +430,6 @@ Create `~/.pi/agent/hermes-memory-config.json`:
 | `projectCharLimit` | `5000` | Max characters in project-scoped MEMORY.md |
 | `memoryDir` | `~/.pi/agent/pi-hermes-memory` | Custom directory for extension storage files |
 | `projectsMemoryDir` | `projects-memory` | Subdirectory under `~/.pi/agent/` for project-scoped memory |
-| `sessionSearch` | `{ "variant": "legacy" }` | Session search implementation: `legacy` keeps the existing SQLite/FTS snippet search; `anchors` uses the opt-in Markdown request surface and returns compact JSONL line-range anchors from `~/.pi/agent/sessions/` |
 | `nudgeInterval` | `10` | Turns between auto-reviews |
 | `nudgeToolCalls` | `15` | Tool calls between auto-reviews (OR with turns) |
 | `reviewRecentMessages` | `0` | Recent messages included in background review (`0` = all) |
