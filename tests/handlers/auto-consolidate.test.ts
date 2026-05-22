@@ -148,7 +148,7 @@ describe("MemoryStore auto-consolidation integration", () => {
       flushOnCompact: false,
       flushOnShutdown: false,
       flushMinTurns: 6,
-      autoConsolidate: true,
+      memoryOverflowStrategy: "auto-consolidate",
       correctionDetection: false,
       nudgeToolCalls: 15,
       memoryDir: MEMORY_DIR,
@@ -181,7 +181,7 @@ describe("MemoryStore auto-consolidation integration", () => {
     assert.ok(result.success, "add should succeed after consolidation");
   });
 
-  it("add() skips consolidation when autoConsolidate is false", async () => {
+  it("add() skips consolidation when memoryOverflowStrategy is reject", async () => {
     let consolidatorCalled = false;
     const { MemoryStore } = await import("../../src/store/memory-store.js");
 
@@ -193,7 +193,7 @@ describe("MemoryStore auto-consolidation integration", () => {
       flushOnCompact: false,
       flushOnShutdown: false,
       flushMinTurns: 6,
-      autoConsolidate: false,
+      memoryOverflowStrategy: "reject",
       correctionDetection: false,
       nudgeToolCalls: 15,
       memoryDir: MEMORY_DIR,
@@ -207,7 +207,7 @@ describe("MemoryStore auto-consolidation integration", () => {
     await store.loadFromDisk();
 
     const result = await store.add("memory", "x".repeat(60));
-    assert.ok(!consolidatorCalled, "consolidator should NOT be called when autoConsolidate is false");
+    assert.ok(!consolidatorCalled, "consolidator should NOT be called when memoryOverflowStrategy is reject");
     assert.ok(!result.success, "should return error");
     assert.ok(result.error!.includes("exceed"), "should mention exceeding limit");
   });
@@ -223,7 +223,7 @@ describe("MemoryStore auto-consolidation integration", () => {
       flushOnCompact: false,
       flushOnShutdown: false,
       flushMinTurns: 6,
-      autoConsolidate: true,
+      memoryOverflowStrategy: "auto-consolidate",
       correctionDetection: false,
       nudgeToolCalls: 15,
       memoryDir: MEMORY_DIR,

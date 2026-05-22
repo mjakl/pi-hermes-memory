@@ -37,7 +37,7 @@ function makeConfig(overrides?: Partial<MemoryConfig>): MemoryConfig {
     flushOnCompact: false,
     flushOnShutdown: false,
     flushMinTurns: 6,
-    autoConsolidate: false,
+    memoryOverflowStrategy: "reject",
     correctionDetection: false,
     failureInjectionEnabled: true,
     failureInjectionMaxAgeDays: 7,
@@ -186,7 +186,6 @@ describe("MemoryStore", { concurrency: 1 }, () => {
       const store = new MemoryStore(makeConfig({
         memoryCharLimit: 50,
         memoryOverflowStrategy: "reject",
-        autoConsolidate: true,
       }));
       store.setConsolidator(async () => {
         consolidatorCalled = true;
@@ -207,7 +206,6 @@ describe("MemoryStore", { concurrency: 1 }, () => {
       const store = new MemoryStore(makeConfig({
         memoryCharLimit: 150,
         memoryOverflowStrategy: "fifo-evict",
-        autoConsolidate: true,
       }));
       store.setConsolidator(async () => {
         consolidatorCalled = true;

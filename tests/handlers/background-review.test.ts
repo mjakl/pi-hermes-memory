@@ -69,7 +69,7 @@ const defaultConfig = {
   memoryCharLimit: 5000,
   userCharLimit: 5000,
   projectCharLimit: 5000,
-  autoConsolidate: true,
+  memoryOverflowStrategy: "auto-consolidate",
   correctionDetection: true,
   failureInjectionEnabled: true,
   failureInjectionMaxAgeDays: 7,

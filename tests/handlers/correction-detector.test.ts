@@ -258,7 +258,7 @@ describe("setupCorrectionDetector handler", () => {
     flushOnCompact: false,
     flushOnShutdown: false,
     flushMinTurns: 6,
-    autoConsolidate: false,
+    memoryOverflowStrategy: "reject",
     nudgeToolCalls: 15,
   };
 

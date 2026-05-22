@@ -36,7 +36,6 @@ const DEFAULT_CONFIG: MemoryConfig = {
   flushMinTurns: DEFAULT_FLUSH_MIN_TURNS,
   flushRecentMessages: DEFAULT_FLUSH_RECENT_MESSAGES,
   memoryOverflowStrategy: "auto-consolidate",
-  autoConsolidate: true,
   correctionDetection: true,
   failureInjectionEnabled: true,
   failureInjectionMaxAgeDays: DEFAULT_FAILURE_INJECTION_MAX_AGE_DAYS,
@@ -66,8 +65,6 @@ export function loadConfig(configPath = DEFAULT_CONFIG_PATH): MemoryConfig {
       const isStringArray = (value: unknown): value is string[] => (
         Array.isArray(value) && value.every((item) => typeof item === "string")
       );
-      let hasLegacyAutoConsolidate = false;
-      let hasMemoryOverflowStrategy = false;
       if (
         parsed.memoryPolicyStyle === "full" ||
         parsed.memoryPolicyStyle === "compact" ||
@@ -84,14 +81,7 @@ export function loadConfig(configPath = DEFAULT_CONFIG_PATH): MemoryConfig {
       if (typeof parsed.flushOnShutdown === "boolean") config.flushOnShutdown = parsed.flushOnShutdown;
       if (typeof parsed.flushMinTurns === "number") config.flushMinTurns = parsed.flushMinTurns;
       if (isNonNegativeNumber(parsed.flushRecentMessages)) config.flushRecentMessages = parsed.flushRecentMessages;
-      if (typeof parsed.autoConsolidate === "boolean") {
-        config.autoConsolidate = parsed.autoConsolidate;
-        hasLegacyAutoConsolidate = true;
-      }
-      if (isMemoryOverflowStrategy(parsed.memoryOverflowStrategy)) {
-        config.memoryOverflowStrategy = parsed.memoryOverflowStrategy;
-        hasMemoryOverflowStrategy = true;
-      }
+      if (isMemoryOverflowStrategy(parsed.memoryOverflowStrategy)) config.memoryOverflowStrategy = parsed.memoryOverflowStrategy;
       if (typeof parsed.correctionDetection === "boolean") config.correctionDetection = parsed.correctionDetection;
       if (isStringArray(parsed.correctionStrongPatterns)) config.correctionStrongPatterns = parsed.correctionStrongPatterns;
       if (isStringArray(parsed.correctionWeakPatterns)) config.correctionWeakPatterns = parsed.correctionWeakPatterns;
@@ -110,11 +100,6 @@ export function loadConfig(configPath = DEFAULT_CONFIG_PATH): MemoryConfig {
       if (typeof parsed.projectsMemoryDir === "string") {
         const normalizedProjectsMemoryDir = normalizeProjectsMemoryDir(parsed.projectsMemoryDir);
         if (normalizedProjectsMemoryDir) config.projectsMemoryDir = normalizedProjectsMemoryDir;
-      }
-      if (hasMemoryOverflowStrategy) {
-        config.autoConsolidate = config.memoryOverflowStrategy === "auto-consolidate";
-      } else if (hasLegacyAutoConsolidate) {
-        config.memoryOverflowStrategy = config.autoConsolidate ? "auto-consolidate" : "reject";
       }
       return config;
     }

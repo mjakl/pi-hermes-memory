@@ -54,7 +54,7 @@ function defaultConfig(overrides: Partial<MemoryConfig> = {}): MemoryConfig {
     flushOnShutdown: true,
     flushMinTurns: 6,
     flushRecentMessages: 0,
-    autoConsolidate: true,
+    memoryOverflowStrategy: "auto-consolidate",
     correctionDetection: true,
     failureInjectionEnabled: true,
     failureInjectionMaxAgeDays: 7,

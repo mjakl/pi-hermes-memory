@@ -36,8 +36,6 @@ export interface MemoryConfig {
   projectsMemoryDir?: string;
   /** Strategy when memory is full. Default: auto-consolidate */
   memoryOverflowStrategy?: MemoryOverflowStrategy;
-  /** Legacy alias for memoryOverflowStrategy. Default: true */
-  autoConsolidate: boolean;
   /** Detect user corrections and trigger immediate memory save. Default: true */
   correctionDetection: boolean;
   /** Override strong correction regex sources. Missing = defaults; [] = none. */

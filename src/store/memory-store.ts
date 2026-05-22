@@ -78,7 +78,7 @@ export class MemoryStore {
   }
 
   private memoryOverflowStrategy(): MemoryOverflowStrategy {
-    return this.config.memoryOverflowStrategy ?? (this.config.autoConsolidate ? "auto-consolidate" : "reject");
+    return this.config.memoryOverflowStrategy ?? "auto-consolidate";
   }
 
   // ─── Load from disk ───
