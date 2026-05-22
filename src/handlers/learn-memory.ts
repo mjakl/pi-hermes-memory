@@ -88,7 +88,7 @@ export function registerLearnMemoryCommand(pi: ExtensionAPI): void {
         lines.push("  /memory-switch-project List all project memories");
         lines.push("  /memory-index-sessions Import past sessions for search");
         lines.push("  /memory-sync-markdown Backfill Markdown memories into SQLite");
-        lines.push("  /memory-preview-context Show memory policy or legacy prompt blocks");
+        lines.push("  /memory-preview-context Show the injected memory policy");
       }
 
       if (section.startsWith("✅")) {
@@ -124,9 +124,6 @@ export function registerLearnMemoryCommand(pi: ExtensionAPI): void {
         lines.push("  6. On failure         → Saves what failed + why");
         lines.push("  7. When full          → Auto-consolidation merges");
         lines.push("  8. Session ends       → Final flush");
-        lines.push("");
-        lines.push("  Legacy mode: set memoryMode=\"legacy-inject\" to restore full");
-        lines.push("  MEMORY.md, USER.md, project memory, and failure prompt blocks.");
       }
 
       if (section.startsWith("🏗️")) {
@@ -152,9 +149,6 @@ export function registerLearnMemoryCommand(pi: ExtensionAPI): void {
         lines.push("  │ /memory-sync-markdown (backfill old md)│");
         lines.push("  │ memory_search(\"auth\", cat:\"failure\")│");
         lines.push("  └─────────────────────────────────────┘");
-        lines.push("");
-        lines.push("  Legacy mode can still inject full memory blocks for users");
-        lines.push("  who explicitly opt into memoryMode=\"legacy-inject\".");
       }
 
       if (section.startsWith("❓")) {

@@ -24,7 +24,6 @@ function isMemoryOverflowStrategy(value: unknown): value is MemoryOverflowStrate
 }
 
 const DEFAULT_CONFIG: MemoryConfig = {
-  memoryMode: "policy-only",
   memoryPolicyStyle: "full",
   memoryCharLimit: DEFAULT_MEMORY_CHAR_LIMIT,
   userCharLimit: DEFAULT_USER_CHAR_LIMIT,
@@ -69,7 +68,6 @@ export function loadConfig(configPath = DEFAULT_CONFIG_PATH): MemoryConfig {
       );
       let hasLegacyAutoConsolidate = false;
       let hasMemoryOverflowStrategy = false;
-      if (parsed.memoryMode === "policy-only" || parsed.memoryMode === "legacy-inject") config.memoryMode = parsed.memoryMode;
       if (
         parsed.memoryPolicyStyle === "full" ||
         parsed.memoryPolicyStyle === "compact" ||

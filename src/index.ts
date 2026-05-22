@@ -155,9 +155,9 @@ export default function (pi: ExtensionAPI) {
 
   registerProjectSkillDiscoveryHandler(pi, skillStore, config.projectsMemoryDir);
 
-  // ── 2. Inject memory policy by default; legacy mode keeps full frozen memory blocks ──
+  // ── 2. Inject memory policy ──
   pi.on("before_agent_start", async (event, _ctx) => {
-    const promptContext = await buildPromptContext(config, store, projectStore, projectName);
+    const promptContext = buildPromptContext(config);
 
     if (promptContext) {
       return {
@@ -194,7 +194,7 @@ export default function (pi: ExtensionAPI) {
   registerSwitchProjectCommand(pi, config);
   registerLearnMemoryCommand(pi);
   registerSyncMarkdownMemoriesCommand(pi, dbManager, globalDir, config.projectsMemoryDir, agentRoot);
-  registerPreviewContextCommand(pi, store, projectStore, projectName, config);
+  registerPreviewContextCommand(pi, config);
 
   // ── 10. SQLite session search + extended memory ──
   registerSessionSearchTool(pi, dbManager);

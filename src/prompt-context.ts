@@ -1,6 +1,5 @@
 import { MEMORY_POLICY_PROMPT, MEMORY_POLICY_PROMPT_COMPACT } from "./constants.js";
 import type { MemoryConfig } from "./types.js";
-import type { MemoryStore } from "./store/memory-store.js";
 
 type MemoryPolicyConfig = Pick<MemoryConfig, "memoryPolicyStyle" | "memoryPolicyCustomText">;
 
@@ -22,22 +21,8 @@ export function resolveMemoryPolicyPrompt(config: MemoryPolicyConfig): string {
   }
 }
 
-export async function buildPromptContext(
-  config: Pick<MemoryConfig, "memoryMode" | "memoryPolicyStyle" | "memoryPolicyCustomText">,
-  store: MemoryStore,
-  projectStore: MemoryStore | null,
-  projectName: string,
-): Promise<string> {
-  if (config.memoryMode === "policy-only") {
-    return resolveMemoryPolicyPrompt(config);
-  }
-
-  const memoryBlock = store.formatForSystemPrompt();
-  const projectBlock = projectStore ? projectStore.formatProjectBlock(projectName) : "";
-
-  const parts: string[] = [];
-  if (memoryBlock) parts.push(memoryBlock);
-  if (projectBlock) parts.push(projectBlock);
-
-  return parts.join("\n\n");
+export function buildPromptContext(
+  config: Pick<MemoryConfig, "memoryPolicyStyle" | "memoryPolicyCustomText">,
+): string {
+  return resolveMemoryPolicyPrompt(config);
 }

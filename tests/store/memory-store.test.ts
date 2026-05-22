@@ -29,7 +29,6 @@ let MEMORY_DIR = "";
 
 function makeConfig(overrides?: Partial<MemoryConfig>): MemoryConfig {
   return {
-    memoryMode: "legacy-inject",
     memoryCharLimit: DEFAULT_MEMORY_CHAR_LIMIT,
     userCharLimit: DEFAULT_USER_CHAR_LIMIT,
     projectCharLimit: 5000,

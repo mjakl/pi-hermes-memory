@@ -6,9 +6,7 @@
 export type MemoryOverflowStrategy = "auto-consolidate" | "reject" | "fifo-evict";
 
 export interface MemoryConfig {
-  /** Prompt memory mode. Default: policy-only */
-  memoryMode: "policy-only" | "legacy-inject";
-  /** Policy prompt style used when memoryMode is policy-only. Default: full */
+  /** Policy prompt style for the system prompt. Default: full */
   memoryPolicyStyle?: "full" | "compact" | "custom" | "none";
   /** Custom policy prompt text used when memoryPolicyStyle is custom */
   memoryPolicyCustomText?: string;

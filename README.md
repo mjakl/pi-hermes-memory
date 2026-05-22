@@ -88,7 +88,7 @@ The extension manages three types of knowledge:
 
 ### Security: Content Scanning
 
-Every write — memory and skills — passes through a scanner before being accepted. This prevents the LLM from being tricked into storing malicious content that could later be surfaced through search or legacy prompt injection.
+Every write — memory and skills — passes through a scanner before being accepted. This prevents the LLM from being tricked into storing malicious content that could later be surfaced through search.
 
 ![Security: Content Scanning](docs/images/security-flow.svg)
 
@@ -132,7 +132,7 @@ System Prompt
 └─────────────────────────────────────────┘
 ```
 
-Set `"memoryPolicyStyle"` to `"full"`, `"compact"`, `"custom"`, or `"none"` to choose policy verbosity while keeping policy-only mode. Set `"memoryMode": "legacy-inject"` to restore the old behavior that injects MEMORY.md, USER.md, project memory, and recent failures into the prompt.
+Set `"memoryPolicyStyle"` to `"full"`, `"compact"`, `"custom"`, or `"none"` to choose policy verbosity.
 
 ## Failure Memory
 
@@ -351,7 +351,7 @@ This means skills build up naturally over time without you having to ask.
 | `/memory-switch-project` | List all project memories and their entry counts |
 | `/memory-index-sessions` | Import past Pi sessions into the search database |
 | `/memory-sync-markdown` | Backfill Markdown memories into the SQLite search store |
-| `/memory-preview-context` | Preview the memory policy or legacy memory blocks appended to the system prompt |
+| `/memory-preview-context` | Preview the memory policy appended to the system prompt |
 | `/learn-memory-tool` | Skill that teaches users how to use the memory system |
 
 ### `/memory-insights` Output
@@ -395,7 +395,6 @@ Create `~/.pi/agent/hermes-memory-config.json`:
 
 ```json
 {
-  "memoryMode": "policy-only",
   "memoryPolicyStyle": "full",
   "memoryCharLimit": 5000,
   "userCharLimit": 5000,
@@ -422,8 +421,7 @@ Create `~/.pi/agent/hermes-memory-config.json`:
 
 | Setting | Default | Description |
 |---|---|---|
-| `memoryMode` | `policy-only` | Prompt behavior: `policy-only` injects only memory policy; `legacy-inject` restores full memory prompt injection |
-| `memoryPolicyStyle` | `full` | Policy text used in `policy-only` mode: `full` preserves the default v0.7 policy; `compact` uses shorter built-in guidance; `custom` uses `memoryPolicyCustomText`; `none` injects no policy text |
+| `memoryPolicyStyle` | `full` | Policy text used in the system prompt: `full` preserves the default v0.7 policy; `compact` uses shorter built-in guidance; `custom` uses `memoryPolicyCustomText`; `none` injects no policy text |
 | `memoryPolicyCustomText` | unset | Custom policy text used when `memoryPolicyStyle` is `custom`; blank or missing text falls back to `compact` |
 | `memoryCharLimit` | `5000` | Max characters in MEMORY.md |
 | `userCharLimit` | `5000` | Max characters in USER.md |
@@ -442,9 +440,9 @@ Create `~/.pi/agent/hermes-memory-config.json`:
 | `correctionWeakPatterns` | unset | Optional case-insensitive regex sources replacing weak correction patterns; omitted preserves defaults, invalid entries are ignored |
 | `correctionNegativePatterns` | unset | Optional case-insensitive regex sources replacing negative correction patterns; omitted preserves defaults, invalid entries are ignored |
 | `correctionDirectiveWords` | unset | Optional directive words replacing the weak-pattern directive words; omitted preserves defaults |
-| `failureInjectionEnabled` | `true` | Legacy mode only: enable/disable injecting recent failure memories into the system prompt |
-| `failureInjectionMaxAgeDays` | `7` | Legacy mode only: maximum age in days for injected failure memories |
-| `failureInjectionMaxEntries` | `5` | Legacy mode only: maximum number of failure memories to inject |
+| `failureInjectionEnabled` | `true` | Include recent failure memories in legacy Markdown prompt formatting helpers |
+| `failureInjectionMaxAgeDays` | `7` | Maximum age in days for formatted recent failure memories |
+| `failureInjectionMaxEntries` | `5` | Maximum number of failure memories to format |
 | `flushOnCompact` | `true` | Flush memories before Pi compacts context |
 | `flushOnShutdown` | `true` | Flush memories when session ends |
 | `flushMinTurns` | `6` | Minimum turns before flush triggers |
@@ -489,7 +487,7 @@ The `sessions.db` SQLite database stores session history and extended memory ent
 - **Session search requires indexing**: Past sessions must be indexed before they're searchable. Run `/memory-index-sessions` to bulk-import, or let the extension auto-index on session shutdown.
 - **Older Markdown memories may need backfill**: If you saved memories before the SQLite mirror existed or search looks stale, run `/memory-sync-markdown`.
 - **Core memory limits still apply**: SQLite search mirroring does not bypass the 5,000-char core Markdown limit. If consolidation cannot free space, the write fails instead of becoming SQLite-only memory invisibly.
-- **System prompts are invisible**: Pi's TUI does not display the system prompt. Use `/memory-preview-context` to inspect whether policy-only or legacy memory injection is active.
+- **System prompts are invisible**: Pi's TUI does not display the system prompt. Use `/memory-preview-context` to inspect the injected memory policy.
 - **Project skill visibility depends on Pi discovery cycles**: project skills are exposed through `resources_discover` using the active project's `skills/` path. If a moved or newly created project skill doesn't show up immediately in a running session, trigger a reload/new session so Pi refreshes discovered resources.
 - **Project move requires active project context**: in `/memory-skills`, the `p` hotkey is disabled when Pi is not currently in a detected project directory.
 - **Skills still need curation**: Skills are saved by the agent through the `skill` tool when it decides a reusable procedure is worth keeping. They may still need review. You can move, delete, or edit them directly in `~/.pi/agent/pi-hermes-memory/skills/` or the active project's `skills/` folder.

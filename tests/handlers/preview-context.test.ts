@@ -5,11 +5,6 @@ import { MEMORY_POLICY_PROMPT, MEMORY_POLICY_PROMPT_COMPACT } from "../../src/co
 
 describe("registerPreviewContextCommand", () => {
   function setup(opts: {
-    memoryBlock?: string;
-    projectBlock?: string;
-    projectName?: string;
-    withProjectStore?: boolean;
-    memoryMode?: "policy-only" | "legacy-inject";
     memoryPolicyStyle?: "full" | "compact" | "custom" | "none";
     memoryPolicyCustomText?: string;
   }) {
@@ -22,25 +17,10 @@ describe("registerPreviewContextCommand", () => {
       },
     } as any;
 
-    const store = {
-      formatForSystemPrompt: () => opts.memoryBlock ?? "",
-    } as any;
-
-    const projectStore = opts.withProjectStore
-      ? ({ formatProjectBlock: () => opts.projectBlock ?? "" } as any)
-      : null;
-
-    registerPreviewContextCommand(
-      mockPi,
-      store,
-      projectStore,
-      opts.projectName ?? "demo-project",
-      {
-        memoryMode: opts.memoryMode ?? "policy-only",
-        memoryPolicyStyle: opts.memoryPolicyStyle,
-        memoryPolicyCustomText: opts.memoryPolicyCustomText,
-      },
-    );
+    registerPreviewContextCommand(mockPi, {
+      memoryPolicyStyle: opts.memoryPolicyStyle,
+      memoryPolicyCustomText: opts.memoryPolicyCustomText,
+    });
 
     return {
       handler: commands[0].handler,
@@ -60,12 +40,8 @@ describe("registerPreviewContextCommand", () => {
     assert.ok(typeof handler === "function");
   });
 
-  it("shows policy-only context by default", async () => {
-    const { handler, ctx, notifyCalls } = setup({
-      memoryBlock: "<memory-context>MEM</memory-context>",
-      projectBlock: "<memory-context>PROJECT</memory-context>",
-      withProjectStore: true,
-    });
+  it("shows policy context by default", async () => {
+    const { handler, ctx, notifyCalls } = setup({});
 
     await handler({}, ctx);
     assert.strictEqual(notifyCalls.length, 1);
@@ -115,38 +91,6 @@ describe("registerPreviewContextCommand", () => {
     assert.match(out, /Policy style: none/);
     assert.match(out, /No memory policy context is injected/);
     assert.doesNotMatch(out, /<memory-policy>/);
-    assert.match(out, /Blocks shown: 0/);
-  });
-
-  it("shows all available blocks in legacy mode", async () => {
-    const { handler, ctx, notifyCalls } = setup({
-      memoryBlock: "<memory-context>MEM</memory-context>",
-      projectBlock: "<memory-context>PROJECT</memory-context>",
-      withProjectStore: true,
-      projectName: "pi-hermes-memory",
-      memoryMode: "legacy-inject",
-    });
-
-    await handler({}, ctx);
-    assert.strictEqual(notifyCalls.length, 1);
-    const out = notifyCalls[0].message;
-    assert.match(out, /Injected Context Preview/);
-    assert.match(out, /MEMORY \+ USER \+ RECENT FAILURES/);
-    assert.match(out, /PROJECT MEMORY \(pi-hermes-memory\)/);
-    assert.match(out, /Blocks shown: 2/);
-  });
-
-  it("shows empty-state guidance when no blocks exist", async () => {
-    const { handler, ctx, notifyCalls } = setup({
-      memoryBlock: "",
-      projectBlock: "",
-      withProjectStore: false,
-      memoryMode: "legacy-inject",
-    });
-
-    await handler({}, ctx);
-    const out = notifyCalls[0].message;
-    assert.match(out, /No memory context blocks are currently injected/);
     assert.match(out, /Blocks shown: 0/);
   });
 });
