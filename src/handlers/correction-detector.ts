@@ -26,6 +26,7 @@ import {
 import type { MemoryConfig } from "../types.js";
 import { getMessageText } from "../types.js";
 import { collectMessageParts } from "./message-parts.js";
+import { runPiPrompt } from "./pi-prompt-runner.js";
 
 /**
  * Extract the directive part from a correction message.
@@ -202,7 +203,7 @@ export function setupCorrectionDetector(
         recentParts.join("\n\n"),
       );
 
-      const result = await pi.exec("pi", ["-p", "--no-session", prompt.join("\n")], {
+      const result = await runPiPrompt(pi, prompt.join("\n"), {
         signal: ctx.signal,
         timeout: 30000,
       });

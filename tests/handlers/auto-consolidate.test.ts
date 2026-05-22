@@ -19,6 +19,8 @@ function createMockPi(execReturn?: { code: number; stdout: string; stderr: strin
   return {
     on: () => {},
     exec: async (...args: any[]) => {
+      const promptArg = (args[1] as string[]).find((arg) => arg.startsWith("@"));
+      (args as any).prompt = promptArg ? await fs.readFile(promptArg.slice(1), "utf-8") : "";
       execCalls.push(args);
       return ret;
     },
@@ -37,6 +39,10 @@ async function settle(ms = 10) {
   await new Promise((r) => setTimeout(r, ms));
 }
 
+function capturedPrompt(index = 0): string {
+  return (execCalls[index] as any).prompt ?? "";
+}
+
 // ─── Tests ───
 
 describe("triggerConsolidation", () => {
@@ -53,8 +59,11 @@ describe("triggerConsolidation", () => {
     assert.strictEqual(cmd, "pi");
     assert.ok(args[0] === "-p", "should use -p flag");
     assert.ok(args.includes("--no-session"), "should include --no-session");
+    assert.ok(args.includes("--no-builtin-tools"), "should disable built-in tools");
+    assert.ok(args.includes("--tools"), "should allowlist tools");
+    assert.ok(args.includes("memory"), "should allow only the memory tool");
 
-    const prompt = args[args.length - 1];
+    const prompt = capturedPrompt();
     assert.ok(prompt.includes("old entry 1"), "prompt should include current memory entries");
     assert.ok(prompt.includes("memory"), "prompt should reference target");
   });
@@ -95,7 +104,7 @@ describe("triggerConsolidation", () => {
     const pi = createMockPi();
     await triggerConsolidation(pi, mockStore, "user");
 
-    const prompt = execCalls[0][1][execCalls[0][1].length - 1];
+    const prompt = capturedPrompt();
     assert.ok(prompt.includes("user fact 1"), "prompt should include user entries");
     assert.ok(prompt.includes("User Profile"), "prompt should reference user profile");
   });
@@ -110,7 +119,7 @@ describe("triggerConsolidation", () => {
     const pi = createMockPi();
     await triggerConsolidation(pi, emptyStore, "memory");
 
-    const prompt = execCalls[0][1][execCalls[0][1].length - 1];
+    const prompt = capturedPrompt();
     assert.ok(prompt.includes("(empty)"), "prompt should show (empty) for empty entries");
   });
 });

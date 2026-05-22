@@ -11,6 +11,7 @@ import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { MemoryStore } from "../store/memory-store.js";
 import { CONSOLIDATION_PROMPT, ENTRY_DELIMITER } from "../constants.js";
 import type { ConsolidationResult } from "../types.js";
+import { runPiPrompt } from "./pi-prompt-runner.js";
 
 export async function triggerConsolidation(
   pi: ExtensionAPI,
@@ -33,7 +34,7 @@ export async function triggerConsolidation(
   ].join("\n");
 
   try {
-    const result = await pi.exec("pi", ["-p", "--no-session", prompt], {
+    const result = await runPiPrompt(pi, prompt, {
       signal,
       timeout: timeoutMs,
     });

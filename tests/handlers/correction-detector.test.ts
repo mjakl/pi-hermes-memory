@@ -233,6 +233,8 @@ describe("setupCorrectionDetector handler", () => {
         handlers[event].push(handler);
       },
       exec: async (...args: any[]) => {
+        const promptArg = (args[1] as string[]).find((arg) => arg.startsWith("@"));
+        (args as any).prompt = promptArg ? fs.readFileSync(promptArg.slice(1), "utf-8") : "";
         execCalls.push(args);
         return ret;
       },
@@ -280,12 +282,12 @@ describe("setupCorrectionDetector handler", () => {
     }
   }
 
-  function fireTurnEnd(branch: any[] = []) {
+  async function fireTurnEnd(branch: any[] = []) {
     const h = handlers["turn_end"];
     if (!h) throw new Error("No turn_end handler registered");
     const ctx = makeCtx(branch);
     for (const fn of h) {
-      fn({}, ctx);
+      await fn({}, ctx);
     }
     return ctx;
   }
@@ -317,7 +319,7 @@ describe("setupCorrectionDetector handler", () => {
     ];
 
     fireMessageEnd("user", "don't do that");
-    fireTurnEnd(branch);
+    await fireTurnEnd(branch);
     await settle();
 
     assert.ok(execCalls.length >= 1, "pi.exec should be called on correction");
@@ -328,7 +330,7 @@ describe("setupCorrectionDetector handler", () => {
     setupCorrectionDetector(pi, mockStore, null, config);
 
     fireMessageEnd("user", "looks good");
-    fireTurnEnd([]);
+    await fireTurnEnd([]);
     await settle();
 
     assert.strictEqual(execCalls.length, 0, "pi.exec should NOT be called for normal messages");
@@ -340,7 +342,7 @@ describe("setupCorrectionDetector handler", () => {
 
     // First correction
     fireMessageEnd("user", "don't do that");
-    fireTurnEnd([]);
+    await fireTurnEnd([]);
     await settle();
 
     const firstCallCount = execCalls.length;
@@ -348,7 +350,7 @@ describe("setupCorrectionDetector handler", () => {
 
     // Second correction within 3 turns — should be rate-limited
     fireMessageEnd("user", "not like that");
-    fireTurnEnd([]);
+    await fireTurnEnd([]);
     await settle();
 
     assert.strictEqual(execCalls.length, firstCallCount, "second correction should be rate-limited");
@@ -369,7 +371,7 @@ describe("setupCorrectionDetector handler", () => {
     ];
 
     fireMessageEnd("user", "no, use pnpm instead");
-    fireTurnEnd(branch);
+    await fireTurnEnd(branch);
     await settle();
 
     const failures = getMemories(dbManager, { target: 'failure' });
@@ -400,11 +402,11 @@ describe("setupCorrectionDetector handler", () => {
     ];
 
     fireMessageEnd("user", "no, use pnpm instead");
-    fireTurnEnd(branch);
+    await fireTurnEnd(branch);
     await settle();
 
     assert.strictEqual(savedDirective, "use pnpm instead");
-    const prompt = execCalls[0][1][2];
+    const prompt = (execCalls[0] as any).prompt ?? "";
     assert.match(prompt, /\[TOOL_RESULT:bash\]: npm failed with lockfile mismatch/);
     assert.match(prompt, /\[USER\]: no, use pnpm instead/);
   });
@@ -427,7 +429,7 @@ describe("setupCorrectionDetector handler", () => {
     ];
 
     fireMessageEnd("user", "no, use pnpm in this repo");
-    fireTurnEnd(branch);
+    await fireTurnEnd(branch);
     await settle();
 
     const projectFailures = getMemories(dbManager, { target: 'failure', project: 'project-a' });
@@ -462,7 +464,7 @@ describe("setupCorrectionDetector handler", () => {
     ];
 
     fireMessageEnd("user", "no, use yarn instead");
-    fireTurnEnd(branch);
+    await fireTurnEnd(branch);
     await settle();
 
     assert.ok(execCalls.length >= 1, 'correction review should still run');

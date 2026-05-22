@@ -1,5 +1,6 @@
 import { describe, it, beforeEach } from "node:test";
 import assert from "node:assert/strict";
+import fs from "node:fs";
 import { setupSessionFlush } from "../../src/handlers/session-flush.js";
 import { FLUSH_PROMPT } from "../../src/constants.js";
 import type { MemoryConfig } from "../../src/types.js";
@@ -17,7 +18,9 @@ function createMockPi() {
       handlers[event].push(handler);
     },
     async exec(...args: any[]) {
-      execCalls.push({ args });
+      const promptArg = (args[1] as string[]).find((arg) => arg.startsWith("@"));
+      const prompt = promptArg ? fs.readFileSync(promptArg.slice(1), "utf-8") : "";
+      execCalls.push({ args, prompt });
       return { code: 0, stdout: "", stderr: "" };
     },
     registerTool() {},
@@ -83,6 +86,10 @@ async function emit(
   for (const h of hs) {
     await h(eventObj, ctx);
   }
+}
+
+function capturedPrompt(call: { args: any[]; prompt?: string }): string {
+  return call.prompt ?? "";
 }
 
 const mockStore = { getMemoryEntries: () => [], getUserEntries: () => [] } as any;
@@ -208,9 +215,11 @@ describe("setupSessionFlush", () => {
     assert.ok(Array.isArray(args));
     assert.equal(args[0], "-p");
     assert.equal(args[1], "--no-session");
+    assert.ok(args.includes("--no-builtin-tools"));
+    assert.ok(args.includes("--tools"));
+    assert.ok(args.includes("memory"));
 
-    // The third arg is the flush message containing the prompt + conversation
-    const flushMessage = args[2];
+    const flushMessage = capturedPrompt(mockPi.execCalls[0]);
     assert.ok(flushMessage.includes(FLUSH_PROMPT), "flush message should contain FLUSH_PROMPT");
     assert.ok(flushMessage.includes("[USER]"), "flush message should contain [USER] prefix");
     assert.ok(
@@ -238,7 +247,7 @@ describe("setupSessionFlush", () => {
     const ctx = { sessionManager: { getBranch: () => branch } };
     await emit(mockPi.handlers, "session_before_compact", { signal: undefined }, ctx);
 
-    const flushMessage = mockPi.execCalls[0].args[1][2];
+    const flushMessage = capturedPrompt(mockPi.execCalls[0]);
     assert.match(flushMessage, /\[TOOL_RESULT:bash\]: test failed: missing semicolon/);
     assert.match(flushMessage, /\[BASH\]: \$ npm test/);
     assert.match(flushMessage, /all tests passed/);
@@ -253,7 +262,7 @@ describe("setupSessionFlush", () => {
     const ctx = { sessionManager: { getBranch: () => mockBranch(8) } };
     await emit(mockPi.handlers, "session_before_compact", { signal: undefined }, ctx);
 
-    const flushMessage = mockPi.execCalls[0].args[1][2];
+    const flushMessage = capturedPrompt(mockPi.execCalls[0]);
     assert.ok(flushMessage.includes("msg 0"), "default should include older messages");
     assert.ok(flushMessage.includes("msg 7"), "default should include latest messages");
   });
@@ -267,7 +276,7 @@ describe("setupSessionFlush", () => {
     const ctx = { sessionManager: { getBranch: () => mockBranch(8) } };
     await emit(mockPi.handlers, "session_before_compact", { signal: undefined }, ctx);
 
-    const flushMessage = mockPi.execCalls[0].args[1][2];
+    const flushMessage = capturedPrompt(mockPi.execCalls[0]);
     assert.ok(!flushMessage.includes("msg 4"), "window should exclude older messages");
     assert.ok(flushMessage.includes("msg 5"));
     assert.ok(flushMessage.includes("msg 6"));
@@ -283,7 +292,7 @@ describe("setupSessionFlush", () => {
     const ctx = { sessionManager: { getBranch: () => mockBranch(8) } };
     await emit(mockPi.handlers, "session_before_compact", { signal: undefined }, ctx);
 
-    const flushMessage = mockPi.execCalls[0].args[1][2];
+    const flushMessage = capturedPrompt(mockPi.execCalls[0]);
     assert.ok(flushMessage.includes("msg 0"), "review limit must not affect flush");
   });
 
@@ -341,7 +350,7 @@ describe("setupSessionFlush", () => {
     // exec is still called (flush message just has no conversation lines)
     assert.equal(mockPi.execCalls.length, 1);
 
-    const flushMessage = mockPi.execCalls[0].args[1][2];
+    const flushMessage = capturedPrompt(mockPi.execCalls[0]);
     assert.ok(flushMessage.includes(FLUSH_PROMPT));
     // No [USER]/[ASSISTANT] prefixes in empty conversation
     assert.ok(!flushMessage.includes("[USER]"), "empty branch should have no [USER]");

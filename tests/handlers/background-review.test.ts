@@ -1,5 +1,6 @@
 import { describe, it, beforeEach } from "node:test";
 import assert from "node:assert";
+import fs from "node:fs";
 import { setupBackgroundReview } from "../../src/handlers/background-review.js";
 
 // ─── Mock infrastructure ───
@@ -23,6 +24,8 @@ function createMockPi(execReturn?: { code: number; stdout: string; stderr: strin
       handlers[event].push(handler);
     },
     exec: async (...args: any[]) => {
+      const promptArg = (args[1] as string[]).find((arg) => arg.startsWith("@"));
+      (args as any).prompt = promptArg ? fs.readFileSync(promptArg.slice(1), "utf-8") : "";
       execCalls.push(args);
       return ret;
     },
@@ -113,7 +116,7 @@ async function settle(ms = 10) {
 }
 
 function reviewPrompt(index = execCalls.length - 1): string {
-  return execCalls[index][1][2];
+  return (execCalls[index] as any).prompt ?? "";
 }
 
 // ─── Tests ───
@@ -125,7 +128,7 @@ describe("setupBackgroundReview", () => {
     notifyCalls = [];
   });
 
-  it("increments user turn count on message_end for user messages", () => {
+  it("increments user turn count on message_end for user messages", async () => {
     const pi = createMockPi();
     setupBackgroundReview(pi, mockStore, null, defaultConfig);
 
@@ -139,6 +142,7 @@ describe("setupBackgroundReview", () => {
     for (let i = 0; i < 10; i++) {
       fireTurnEnd();
     }
+    await settle();
 
     // exec should have been called since we have 3 user turns and 10 turn_end events
     assert.ok(execCalls.length > 0, "exec should be called with 3 user turns and 10 turn_end events");
@@ -170,6 +174,9 @@ describe("setupBackgroundReview", () => {
     const cmdArgs: string[] = execArgs[1];
     assert.ok(cmdArgs[0] === "-p", "should use -p flag");
     assert.ok(cmdArgs.includes("--no-session"), "should include --no-session");
+    assert.ok(cmdArgs.includes("--no-builtin-tools"), "should disable built-in tools");
+    assert.ok(cmdArgs.includes("--tools"), "should allowlist tools");
+    assert.ok(cmdArgs.includes("memory"), "should allow only memory tool");
     const prompt = reviewPrompt(0);
     assert.match(prompt, /Do NOT create or modify skills in this background review/i);
     assert.doesNotMatch(prompt, /save a reusable procedure using the skill tool/i);
