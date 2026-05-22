@@ -76,6 +76,29 @@ describe("integration: cross-module contracts", () => {
       assert.strictEqual(getMessageText(toolMsg as any), "Some output");
     });
 
+    it("returns command and output from bash execution messages", () => {
+      const bashMsg = {
+        role: "bashExecution",
+        command: "npm test",
+        output: "all tests passed",
+        exitCode: 0,
+        cancelled: false,
+        truncated: false,
+      };
+      assert.match(getMessageText(bashMsg as any) ?? "", /\$ npm test/);
+      assert.match(getMessageText(bashMsg as any) ?? "", /all tests passed/);
+    });
+
+    it("ignores hidden bash execution messages", () => {
+      const bashMsg = {
+        role: "bashExecution",
+        command: "security find-generic-password",
+        output: "secret",
+        excludeFromContext: true,
+      };
+      assert.strictEqual(getMessageText(bashMsg as any), null);
+    });
+
     it("truncates long text to maxLength", () => {
       const msg = { role: "user", content: "a".repeat(1000) };
       const text = getMessageText(msg as any, 50);
@@ -87,15 +110,16 @@ describe("integration: cross-module contracts", () => {
       assert.strictEqual(getMessageText(msg as any), null);
     });
 
-    it("filters non-text blocks from assistant content", () => {
+    it("includes current Pi toolCall blocks from assistant content", () => {
       const msg = {
         role: "assistant",
         content: [
           { type: "thinking", thinking: "Hmm..." },
-          { type: "tool_use", name: "bash" },
+          { type: "toolCall", name: "bash", arguments: { command: "npm test" } },
         ],
       };
-      assert.strictEqual(getMessageText(msg as any), null);
+      assert.match(getMessageText(msg as any) ?? "", /tool call: bash/);
+      assert.match(getMessageText(msg as any) ?? "", /npm test/);
     });
   });
 

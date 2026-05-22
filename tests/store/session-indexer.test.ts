@@ -68,6 +68,25 @@ describe('session-indexer', () => {
       assert.deepStrictEqual(JSON.parse(msg.tool_calls), ['read']);
     });
 
+    it('should index current Pi toolResult and bashExecution messages', () => {
+      const session = createTestSession({
+        messages: [
+          { id: 'tool-1', role: 'toolResult', content: 'read result:\nimportant file output', timestamp: '2026-05-03T00:02:00Z', toolCalls: ['read'] },
+          { id: 'bash-1', role: 'bashExecution', content: 'Command: npm test\nOutput:\nall tests passed', timestamp: '2026-05-03T00:03:00Z', toolCalls: ['bash'] },
+        ],
+      });
+
+      const result = indexSession(dbManager, session);
+      assert.strictEqual(result.messagesIndexed, 2);
+
+      const db = dbManager.getDb();
+      const rows = db.prepare('SELECT role, content, tool_calls FROM messages ORDER BY id').all() as Array<{ role: string; content: string; tool_calls: string | null }>;
+      assert.deepStrictEqual(rows.map((row) => row.role), ['bashExecution', 'toolResult']);
+      assert.ok(rows.some((row) => row.content.includes('important file output')));
+      assert.ok(rows.some((row) => row.content.includes('all tests passed')));
+      assert.ok(rows.every((row) => row.tool_calls));
+    });
+
     it('should skip already-indexed sessions', () => {
       const session = createTestSession();
 

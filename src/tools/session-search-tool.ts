@@ -116,6 +116,27 @@ function compactReason(reason: string | undefined): string {
   return oneLine.length <= 180 ? oneLine : `${oneLine.slice(0, 177)}...`;
 }
 
+function formatRoleLabel(role: string): string {
+  switch (role) {
+    case 'user':
+      return '👤 User';
+    case 'assistant':
+      return '🤖 Assistant';
+    case 'toolResult':
+      return '🛠️ Tool result';
+    case 'bashExecution':
+      return '💻 Bash';
+    case 'custom':
+      return '🧩 Custom';
+    case 'branchSummary':
+      return '🌿 Branch summary';
+    case 'compactionSummary':
+      return '🗜️ Compaction summary';
+    default:
+      return role;
+  }
+}
+
 function registerLegacySessionSearchTool(pi: ExtensionAPI, dbManager: DatabaseManager): void {
   pi.registerTool({
     name: 'session_search',
@@ -136,7 +157,7 @@ Returns conversation snippets with session dates and project context.`,
     parameters: Type.Object({
       query: Type.String({ description: 'Search query. Use natural language or specific terms.' }),
       project: Type.Optional(Type.String({ description: 'Filter by project name (optional).' })),
-      role: Type.Optional(StringEnum(['user', 'assistant'] as const, { description: 'Filter by message role (optional).' })),
+      role: Type.Optional(StringEnum(['user', 'assistant', 'toolResult', 'bashExecution', 'custom', 'branchSummary', 'compactionSummary'] as const, { description: 'Filter by indexed message role/kind (optional).' })),
       limit: Type.Optional(Type.Number({ description: 'Maximum results to return (default: 10, max: 20).' })),
     }),
     execute: async (_id: string, args: { query: string; project?: string; role?: string; limit?: number }) => {
@@ -173,7 +194,7 @@ Returns conversation snippets with session dates and project context.`,
         });
 
         output += `---\n`;
-        output += `📅 ${date} | 📁 ${r.project} | ${r.role === 'user' ? '👤 User' : '🤖 Assistant'}\n`;
+        output += `📅 ${date} | 📁 ${r.project} | ${formatRoleLabel(r.role)}\n`;
         output += `${r.snippet}\n\n`;
       }
 

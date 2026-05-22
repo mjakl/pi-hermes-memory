@@ -175,6 +175,35 @@ describe("setupBackgroundReview", () => {
     assert.doesNotMatch(prompt, /save a reusable procedure using the skill tool/i);
   });
 
+  it("includes tool results and bash output in review prompts", async () => {
+    const pi = createMockPi();
+    setupBackgroundReview(pi, mockStore, null, defaultConfig);
+
+    fireMessageEnd("user");
+    fireMessageEnd("user");
+    fireMessageEnd("user");
+
+    const branch = [
+      { type: "message", message: { role: "user", content: [{ type: "text", text: "Run the tests" }] } },
+      { type: "message", message: { role: "assistant", content: [{ type: "text", text: "I'll run them." }] } },
+      { type: "message", message: { role: "assistant", content: [{ type: "toolCall", id: "tc1", name: "bash", arguments: { command: "npm test" } }] } },
+      { type: "message", message: { role: "toolResult", toolName: "bash", content: [{ type: "text", text: "test failed: missing semicolon" }] } },
+      { type: "message", message: { role: "bashExecution", command: "npm test", output: "all tests passed", exitCode: 0, cancelled: false, truncated: false } },
+      { type: "message", message: { role: "user", content: [{ type: "text", text: "Remember that fix" }] } },
+    ];
+
+    for (let i = 0; i < 10; i++) {
+      fireTurnEnd(branch);
+    }
+    await settle();
+
+    assert.strictEqual(execCalls.length, 1);
+    const prompt = reviewPrompt(0);
+    assert.match(prompt, /\[TOOL_RESULT:bash\]: test failed: missing semicolon/);
+    assert.match(prompt, /\[BASH\]: \$ npm test/);
+    assert.match(prompt, /all tests passed/);
+  });
+
   it("does NOT trigger review when reviewEnabled is false", async () => {
     const config = { ...defaultConfig, reviewEnabled: false };
     const pi = createMockPi();

@@ -24,7 +24,7 @@ export const SCHEMA_SQL = `
   CREATE TABLE IF NOT EXISTS messages (
     id TEXT PRIMARY KEY,
     session_id TEXT NOT NULL REFERENCES sessions(id),
-    role TEXT NOT NULL CHECK (role IN ('user', 'assistant', 'system')),
+    role TEXT NOT NULL,
     content TEXT NOT NULL,
     timestamp TEXT NOT NULL,
     tool_calls TEXT

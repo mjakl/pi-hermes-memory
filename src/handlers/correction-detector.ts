@@ -25,6 +25,7 @@ import {
 } from "../constants.js";
 import type { MemoryConfig } from "../types.js";
 import { getMessageText } from "../types.js";
+import { collectMessageParts } from "./message-parts.js";
 
 /**
  * Extract the directive part from a correction message.
@@ -132,6 +133,7 @@ export function setupCorrectionDetector(
   if (!config.correctionDetection) return;
 
   let pendingCorrection = false;
+  let pendingCorrectionText: string | null = null;
   let turnsSinceLastCorrection = 3; // Start at threshold so first correction can fire immediately
   let correctionInProgress = false;
 
@@ -142,6 +144,7 @@ export function setupCorrectionDetector(
     if (!text) return;
     if (isCorrection(text, config)) {
       pendingCorrection = true;
+      pendingCorrectionText = text;
     }
   });
 
@@ -152,6 +155,8 @@ export function setupCorrectionDetector(
       return;
     }
     pendingCorrection = false;
+    const correctionText = pendingCorrectionText;
+    pendingCorrectionText = null;
 
     // Rate limit: max 1 correction save per 3 turns
     if (turnsSinceLastCorrection < 3) return;
@@ -161,21 +166,13 @@ export function setupCorrectionDetector(
     correctionInProgress = true;
 
     try {
-      // Build conversation snapshot
+      // Build conversation snapshot. This intentionally uses the shared Pi v3
+      // serializer so tool results and bash executions are preserved.
       const entries = ctx.sessionManager.getBranch();
-      const parts: string[] = [];
-
-      for (const entry of entries) {
-        if (entry.type !== "message") continue;
-        const msg = entry.message;
-        const text = getMessageText(msg);
-        if (!text) continue;
-        const prefix = msg.role === "user" ? "[USER]" : "[ASSISTANT]";
-        parts.push(`${prefix}: ${text}`);
-      }
+      const parts = collectMessageParts(entries);
 
       // Only include last few exchanges (correction context is recent)
-      const recentParts = parts.slice(-6);
+      const recentParts = parts.slice(-8);
 
       const currentMemory = store.getMemoryEntries().join(ENTRY_DELIMITER);
       const currentUser = store.getUserEntries().join(ENTRY_DELIMITER);
@@ -219,8 +216,6 @@ export function setupCorrectionDetector(
 
       // Also save as a failure memory for learning
       try {
-        const lastUserMsg = recentParts.find(p => p.startsWith("[USER]"));
-        const correctionText = lastUserMsg ? lastUserMsg.replace(/^\[USER\]:\s*/, "") : "";
         if (correctionText) {
           const directive = extractCorrectionDirective(correctionText);
           const failureReason = "User corrected the agent";

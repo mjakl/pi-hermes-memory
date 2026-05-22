@@ -2,7 +2,6 @@
  * Shared TypeScript types for the Hermes Memory extension.
  */
 
-import type { TextContent } from "@earendil-works/pi-ai";
 
 export type MemoryOverflowStrategy = "auto-consolidate" | "reject" | "fifo-evict";
 
@@ -152,28 +151,111 @@ export interface SkillResult {
   suggestedAction?: "patch" | "update" | "rename";
 }
 
+function truncateText(text: string, maxLength: number): string {
+  return text.length > maxLength ? text.slice(0, maxLength) : text;
+}
+
+function compactJson(value: unknown, maxLength = 300): string {
+  try {
+    const json = JSON.stringify(value ?? {});
+    return json.length > maxLength ? `${json.slice(0, maxLength)}...` : json;
+  } catch {
+    return "{}";
+  }
+}
+
+function formatToolCall(block: Record<string, unknown>): string | null {
+  if (block.type !== "toolCall") return null;
+  const name = typeof block.name === "string" ? block.name : "unknown";
+  const args = block.arguments && typeof block.arguments === "object"
+    ? compactJson(block.arguments)
+    : "{}";
+  return `${name}(${args})`;
+}
+
+function extractContentText(content: unknown): string[] {
+  if (typeof content === "string") return [content];
+  if (!Array.isArray(content)) return [];
+
+  const parts: string[] = [];
+  for (const block of content) {
+    if (!block || typeof block !== "object") continue;
+    const record = block as Record<string, unknown>;
+
+    if (record.type === "text" && typeof record.text === "string") {
+      parts.push(record.text);
+      continue;
+    }
+
+    const toolCall = formatToolCall(record);
+    if (toolCall) parts.push(`[tool call: ${toolCall}]`);
+  }
+  return parts;
+}
+
+function getBashExecutionText(msg: Record<string, unknown>): string | null {
+  // Respect Pi's hidden bash mode (`!!cmd`): those outputs are intentionally
+  // excluded from model context and should not be learned or indexed here.
+  if (msg.excludeFromContext === true) return null;
+
+  const command = typeof msg.command === "string" ? msg.command.trim() : "";
+  const output = typeof msg.output === "string" ? msg.output.trim() : "";
+  const exitCode = typeof msg.exitCode === "number" ? `exit code: ${msg.exitCode}` : "";
+  const truncated = msg.truncated === true ? "[output truncated]" : "";
+
+  const parts = [
+    command ? `$ ${command}` : "",
+    output,
+    exitCode,
+    truncated,
+  ].filter(Boolean);
+
+  return parts.length > 0 ? parts.join("\n") : null;
+}
+
 /**
- * Extract displayable text from a Pi session entry message.
+ * Extract displayable text from a current Pi AgentMessage-like value.
  *
- * Accepts any value — returns null for non-message entries (BashExecutionMessage,
- * NotificationMessage, etc.) that lack a `content` property.
- *
+ * Supports current Pi v3 message roles, including toolResult and
+ * bashExecution. Hidden bash executions (`excludeFromContext`) are skipped.
  * Returns the concatenated text, truncated to `maxLength` chars.
  */
 export function getMessageText(msg: unknown, maxLength = 500): string | null {
   if (typeof msg !== "object" || msg === null) return null;
-  const { role, content } = msg as Record<string, unknown>;
+  const record = msg as Record<string, unknown>;
+  const role = record.role;
   if (typeof role !== "string") return null;
 
-  if (typeof content === "string") {
-    return content.slice(0, maxLength);
+  const text = role === "bashExecution"
+    ? getBashExecutionText(record)
+    : extractContentText(record.content).join("\n").trim();
+
+  return text ? truncateText(text, maxLength) : null;
+}
+
+export function getMessageLabel(msg: unknown): string {
+  if (typeof msg !== "object" || msg === null) return "[MESSAGE]";
+  const record = msg as Record<string, unknown>;
+  const role = record.role;
+
+  switch (role) {
+    case "user":
+      return "[USER]";
+    case "assistant":
+      return "[ASSISTANT]";
+    case "toolResult": {
+      const toolName = typeof record.toolName === "string" ? `:${record.toolName}` : "";
+      return `[TOOL_RESULT${toolName}]`;
+    }
+    case "bashExecution":
+      return "[BASH]";
+    case "custom":
+      return "[CUSTOM]";
+    case "branchSummary":
+      return "[BRANCH_SUMMARY]";
+    case "compactionSummary":
+      return "[COMPACTION_SUMMARY]";
+    default:
+      return "[MESSAGE]";
   }
-  if (Array.isArray(content)) {
-    const text = (content as TextContent[])
-      .filter((block): block is TextContent => block.type === "text" && typeof block.text === "string")
-      .map((block) => block.text)
-      .join("\n");
-    return text.length > 0 ? text.slice(0, maxLength) : null;
-  }
-  return null;
 }

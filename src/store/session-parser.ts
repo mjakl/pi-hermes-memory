@@ -1,4 +1,5 @@
 import fs from 'node:fs';
+import path from 'node:path';
 
 /**
  * Parsed session data from a JSONL file.
@@ -12,12 +13,21 @@ export interface ParsedSession {
   messages: ParsedMessage[];
 }
 
+export type ParsedMessageRole =
+  | 'user'
+  | 'assistant'
+  | 'toolResult'
+  | 'bashExecution'
+  | 'custom'
+  | 'branchSummary'
+  | 'compactionSummary';
+
 /**
  * A single parsed message from a session.
  */
 export interface ParsedMessage {
   id: string;
-  role: 'user' | 'assistant' | 'system';
+  role: ParsedMessageRole;
   content: string;
   timestamp: string;
   toolCalls?: string[];
@@ -32,56 +42,48 @@ interface JsonlEntry {
   parentId?: string | null;
   timestamp?: string;
   cwd?: string;
-  message?: {
-    role?: string;
-    content?: unknown;
-    timestamp?: number;
-  };
+  message?: Record<string, unknown>;
   customType?: string;
+  content?: unknown;
+  summary?: unknown;
   [key: string]: unknown;
 }
 
-/**
- * Extract text content from a message's content array.
- */
-function extractTextContent(content: unknown): string {
-  if (typeof content === 'string') return content;
-  if (!Array.isArray(content)) return '';
+function compactJson(value: unknown, maxLength = 500): string {
+  try {
+    const json = JSON.stringify(value ?? {});
+    return json.length > maxLength ? `${json.slice(0, maxLength)}...` : json;
+  } catch {
+    return '{}';
+  }
+}
+
+function extractTextBlocks(content: unknown): string[] {
+  if (typeof content === 'string') return [content];
+  if (!Array.isArray(content)) return [];
 
   const parts: string[] = [];
   for (const block of content) {
     if (!block || typeof block !== 'object') continue;
     const b = block as Record<string, unknown>;
-
-    switch (b.type) {
-      case 'text':
-        if (typeof b.text === 'string') parts.push(b.text);
-        break;
-      case 'thinking':
-        // Skip thinking blocks — they're internal reasoning
-        break;
-      case 'tool_use':
-        // Skip tool_use blocks — we track tool calls separately
-        break;
-      case 'tool_result':
-        // Include tool result text if present
-        if (typeof b.content === 'string') {
-          parts.push(b.content);
-        } else if (Array.isArray(b.content)) {
-          for (const item of b.content) {
-            if (item && typeof item === 'object' && (item as Record<string, unknown>).type === 'text') {
-              parts.push((item as Record<string, unknown>).text as string);
-            }
-          }
-        }
-        break;
+    if (b.type === 'text' && typeof b.text === 'string') {
+      parts.push(b.text);
     }
   }
-  return parts.join('\n').trim();
+  return parts;
+}
+
+function formatToolCall(block: Record<string, unknown>): string | null {
+  if (block.type !== 'toolCall') return null;
+  const name = typeof block.name === 'string' ? block.name : 'unknown';
+  const args = block.arguments && typeof block.arguments === 'object'
+    ? compactJson(block.arguments)
+    : '{}';
+  return `${name}(${args})`;
 }
 
 /**
- * Extract tool call names from a message's content array.
+ * Extract tool call names from a current Pi assistant message content array.
  */
 function extractToolCalls(content: unknown): string[] | undefined {
   if (!Array.isArray(content)) return undefined;
@@ -90,11 +92,140 @@ function extractToolCalls(content: unknown): string[] | undefined {
   for (const block of content) {
     if (!block || typeof block !== 'object') continue;
     const b = block as Record<string, unknown>;
-    if (b.type === 'tool_use' && typeof b.name === 'string') {
+    if (b.type === 'toolCall' && typeof b.name === 'string') {
       toolNames.push(b.name);
     }
   }
   return toolNames.length > 0 ? toolNames : undefined;
+}
+
+function extractAssistantContent(content: unknown): string {
+  const parts = extractTextBlocks(content);
+
+  if (Array.isArray(content)) {
+    const toolCalls = content
+      .filter((block): block is Record<string, unknown> => !!block && typeof block === 'object')
+      .map(formatToolCall)
+      .filter((value): value is string => Boolean(value));
+
+    if (toolCalls.length > 0) {
+      parts.push(`Tool calls: ${toolCalls.join('; ')}`);
+    }
+  }
+
+  return parts.join('\n').trim();
+}
+
+function extractToolResultContent(message: Record<string, unknown>): string {
+  const text = extractTextBlocks(message.content).join('\n').trim();
+  const toolName = typeof message.toolName === 'string' ? message.toolName : '';
+  if (!text) return '';
+  return toolName ? `${toolName} result:\n${text}` : text;
+}
+
+function extractBashExecutionContent(message: Record<string, unknown>): string {
+  // Pi uses excludeFromContext for hidden `!!` shell commands. Do not import
+  // those outputs into searchable memory/session context.
+  if (message.excludeFromContext === true) return '';
+
+  const command = typeof message.command === 'string' ? message.command.trim() : '';
+  const output = typeof message.output === 'string' ? message.output.trim() : '';
+  const exitCode = typeof message.exitCode === 'number' ? `Exit code: ${message.exitCode}` : '';
+  const cancelled = message.cancelled === true ? 'Cancelled: true' : '';
+  const truncated = message.truncated === true ? 'Output truncated: true' : '';
+  const fullOutputPath = typeof message.fullOutputPath === 'string'
+    ? `Full output: ${message.fullOutputPath}`
+    : '';
+
+  return [
+    command ? `Command: ${command}` : '',
+    output ? `Output:\n${output}` : '',
+    exitCode,
+    cancelled,
+    truncated,
+    fullOutputPath,
+  ].filter(Boolean).join('\n').trim();
+}
+
+function parseMessageEntry(entry: JsonlEntry): ParsedMessage | null {
+  if (!entry.message || !entry.id || !entry.timestamp) return null;
+
+  const msg = entry.message;
+  const role = msg.role;
+  if (typeof role !== 'string') return null;
+
+  let parsedRole: ParsedMessageRole | null = null;
+  let content = '';
+  let toolCalls: string[] | undefined;
+
+  switch (role) {
+    case 'user':
+      parsedRole = 'user';
+      content = extractTextBlocks(msg.content).join('\n').trim();
+      break;
+    case 'assistant':
+      parsedRole = 'assistant';
+      content = extractAssistantContent(msg.content);
+      toolCalls = extractToolCalls(msg.content);
+      break;
+    case 'toolResult':
+      parsedRole = 'toolResult';
+      content = extractToolResultContent(msg);
+      if (typeof msg.toolName === 'string') toolCalls = [msg.toolName];
+      break;
+    case 'bashExecution':
+      parsedRole = 'bashExecution';
+      content = extractBashExecutionContent(msg);
+      if (content) toolCalls = ['bash'];
+      break;
+    case 'custom':
+      parsedRole = 'custom';
+      content = extractTextBlocks(msg.content).join('\n').trim();
+      break;
+    case 'branchSummary':
+      parsedRole = 'branchSummary';
+      content = typeof msg.summary === 'string'
+        ? msg.summary.trim()
+        : extractTextBlocks(msg.content).join('\n').trim();
+      break;
+    case 'compactionSummary':
+      parsedRole = 'compactionSummary';
+      content = typeof msg.summary === 'string'
+        ? msg.summary.trim()
+        : extractTextBlocks(msg.content).join('\n').trim();
+      break;
+  }
+
+  if (!parsedRole || !content) return null;
+
+  return {
+    id: entry.id,
+    role: parsedRole,
+    content,
+    timestamp: entry.timestamp,
+    toolCalls,
+  };
+}
+
+function parseSpecialEntry(entry: JsonlEntry): ParsedMessage | null {
+  if (!entry.id || !entry.timestamp) return null;
+
+  if (entry.type === 'custom_message') {
+    const content = extractTextBlocks(entry.content).join('\n').trim();
+    return content ? { id: entry.id, role: 'custom', content, timestamp: entry.timestamp } : null;
+  }
+
+  if (entry.type === 'compaction' && typeof entry.summary === 'string') {
+    const content = entry.summary.trim();
+    return content ? { id: entry.id, role: 'compactionSummary', content, timestamp: entry.timestamp } : null;
+  }
+
+  if (entry.type === 'branch_summary' && typeof entry.summary === 'string') {
+    const content = entry.summary.trim();
+    return content ? { id: entry.id, role: 'branchSummary', content, timestamp: entry.timestamp } : null;
+  }
+
+  return null;
 }
 
 /**
@@ -124,48 +255,36 @@ export function parseSessionFile(filePath: string): ParsedSession | null {
 
     switch (entry.type) {
       case 'session':
-        sessionId = entry.id ?? null;
-        sessionCwd = entry.cwd ?? null;
-        sessionTimestamp = entry.timestamp ?? null;
+        sessionId = typeof entry.id === 'string' ? entry.id : null;
+        sessionCwd = typeof entry.cwd === 'string' ? entry.cwd : null;
+        sessionTimestamp = typeof entry.timestamp === 'string' ? entry.timestamp : null;
         break;
 
       case 'message': {
-        if (!entry.message || !entry.id || !entry.timestamp) break;
-
-        const role = entry.message.role;
-        if (role !== 'user' && role !== 'assistant' && role !== 'system') break;
-
-        const textContent = extractTextContent(entry.message.content);
-        if (!textContent) break; // Skip empty messages
-
-        const toolCalls = role === 'assistant' ? extractToolCalls(entry.message.content) : undefined;
-
-        messages.push({
-          id: entry.id,
-          role,
-          content: textContent,
-          timestamp: entry.timestamp,
-          toolCalls,
-        });
+        const parsed = parseMessageEntry(entry);
+        if (parsed) messages.push(parsed);
         break;
       }
-      // Skip other entry types (model_change, thinking_level_change, custom, etc.)
+
+      case 'custom_message':
+      case 'compaction':
+      case 'branch_summary': {
+        const parsed = parseSpecialEntry(entry);
+        if (parsed) messages.push(parsed);
+        break;
+      }
+      // Skip model_change, thinking_level_change, custom state, labels, etc.
     }
   }
 
   if (!sessionId || !sessionCwd || !sessionTimestamp) return null;
 
-  // Decode project name from cwd-encoded directory name
-  // The directory is named like "--Users-chandrateja-Documents-pi-hermes-memory--"
-  // We extract the last segment as the project name
-  const project = sessionCwd.split('/').pop() ?? sessionCwd;
-
   return {
     id: sessionId,
-    project,
+    project: path.basename(sessionCwd) || sessionCwd,
     cwd: sessionCwd,
     startedAt: sessionTimestamp,
-    endedAt: null, // We don't know when it ended from the JSONL
+    endedAt: null,
     messages,
   };
 }

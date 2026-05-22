@@ -33,7 +33,7 @@ export interface SessionSearchOptions {
   limit?: number;
   /** Filter by project name */
   project?: string;
-  /** Filter by role: 'user', 'assistant', 'system' */
+  /** Filter by indexed role/kind, e.g. user, assistant, toolResult, bashExecution */
   role?: string;
   /** Only return messages after this date (ISO string) */
   since?: string;

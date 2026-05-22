@@ -16,28 +16,24 @@ describe('session-parser', () => {
     fs.rmSync(tmpDir, { recursive: true, force: true });
   });
 
+  function writeSession(lines: unknown[]): string {
+    const filePath = path.join(tmpDir, 'test-session.jsonl');
+    fs.writeFileSync(filePath, lines.map((line) => JSON.stringify(line)).join('\n'));
+    return filePath;
+  }
+
   describe('parseSessionFile', () => {
-    it('should parse a valid session JSONL file', () => {
-      const filePath = path.join(tmpDir, 'test-session.jsonl');
-      const lines = [
-        JSON.stringify({
-          type: 'session',
-          id: 'session-123',
-          timestamp: '2026-05-03T00:00:00Z',
-          cwd: '/Users/test/Documents/my-project',
-        }),
-        JSON.stringify({
+    it('parses current Pi v3 text messages and skips thinking blocks', () => {
+      const filePath = writeSession([
+        { type: 'session', id: 'session-123', timestamp: '2026-05-03T00:00:00Z', cwd: '/Users/test/Documents/my-project' },
+        {
           type: 'message',
           id: 'msg-1',
           parentId: null,
           timestamp: '2026-05-03T00:01:00Z',
-          message: {
-            role: 'user',
-            content: [{ type: 'text', text: 'Hello, how are you?' }],
-            timestamp: Date.now(),
-          },
-        }),
-        JSON.stringify({
+          message: { role: 'user', content: [{ type: 'text', text: 'Hello, how are you?' }], timestamp: Date.now() },
+        },
+        {
           type: 'message',
           id: 'msg-2',
           parentId: 'msg-1',
@@ -50,9 +46,8 @@ describe('session-parser', () => {
             ],
             timestamp: Date.now(),
           },
-        }),
-      ];
-      fs.writeFileSync(filePath, lines.join('\n'));
+        },
+      ]);
 
       const result = parseSessionFile(filePath);
       assert.ok(result);
@@ -66,37 +61,10 @@ describe('session-parser', () => {
       assert.strictEqual(result.messages[1].content, 'I am doing well, thank you!');
     });
 
-    it('should skip thinking blocks in assistant messages', () => {
-      const filePath = path.join(tmpDir, 'test.jsonl');
-      const lines = [
-        JSON.stringify({ type: 'session', id: 's1', timestamp: '2026-05-03T00:00:00Z', cwd: '/test' }),
-        JSON.stringify({
-          type: 'message',
-          id: 'msg-1',
-          parentId: null,
-          timestamp: '2026-05-03T00:01:00Z',
-          message: {
-            role: 'assistant',
-            content: [
-              { type: 'thinking', thinking: 'Internal reasoning...' },
-              { type: 'text', text: 'Actual response' },
-            ],
-            timestamp: Date.now(),
-          },
-        }),
-      ];
-      fs.writeFileSync(filePath, lines.join('\n'));
-
-      const result = parseSessionFile(filePath);
-      assert.ok(result);
-      assert.strictEqual(result.messages[0].content, 'Actual response');
-    });
-
-    it('should extract tool call names from assistant messages', () => {
-      const filePath = path.join(tmpDir, 'test.jsonl');
-      const lines = [
-        JSON.stringify({ type: 'session', id: 's1', timestamp: '2026-05-03T00:00:00Z', cwd: '/test' }),
-        JSON.stringify({
+    it('extracts current Pi toolCall blocks from assistant messages', () => {
+      const filePath = writeSession([
+        { type: 'session', id: 's1', timestamp: '2026-05-03T00:00:00Z', cwd: '/test/project' },
+        {
           type: 'message',
           id: 'msg-1',
           parentId: null,
@@ -105,40 +73,156 @@ describe('session-parser', () => {
             role: 'assistant',
             content: [
               { type: 'text', text: 'Let me check...' },
-              { type: 'tool_use', name: 'read', input: {} },
-              { type: 'tool_use', name: 'bash', input: {} },
+              { type: 'toolCall', id: 'call-1', name: 'read', arguments: { path: 'src/index.ts' } },
+              { type: 'toolCall', id: 'call-2', name: 'bash', arguments: { command: 'npm test' } },
             ],
             timestamp: Date.now(),
           },
-        }),
-      ];
-      fs.writeFileSync(filePath, lines.join('\n'));
+        },
+      ]);
 
       const result = parseSessionFile(filePath);
       assert.ok(result);
       assert.deepStrictEqual(result.messages[0].toolCalls, ['read', 'bash']);
+      assert.match(result.messages[0].content, /Let me check/);
+      assert.match(result.messages[0].content, /Tool calls: read/);
+      assert.match(result.messages[0].content, /npm test/);
     });
 
-    it('should skip empty messages', () => {
-      const filePath = path.join(tmpDir, 'test.jsonl');
-      const lines = [
-        JSON.stringify({ type: 'session', id: 's1', timestamp: '2026-05-03T00:00:00Z', cwd: '/test' }),
-        JSON.stringify({
+    it('indexes top-level toolResult messages from current Pi sessions', () => {
+      const filePath = writeSession([
+        { type: 'session', id: 's1', timestamp: '2026-05-03T00:00:00Z', cwd: '/test/project' },
+        {
+          type: 'message',
+          id: 'msg-tool-result',
+          parentId: null,
+          timestamp: '2026-05-03T00:01:00Z',
+          message: {
+            role: 'toolResult',
+            toolCallId: 'call-1',
+            toolName: 'read',
+            content: [{ type: 'text', text: 'file contents here' }, { type: 'image', data: 'abc', mimeType: 'image/png' }],
+            isError: false,
+            timestamp: Date.now(),
+          },
+        },
+      ]);
+
+      const result = parseSessionFile(filePath);
+      assert.ok(result);
+      assert.strictEqual(result.messages.length, 1);
+      assert.strictEqual(result.messages[0].role, 'toolResult');
+      assert.strictEqual(result.messages[0].toolCalls?.[0], 'read');
+      assert.match(result.messages[0].content, /read result:/);
+      assert.match(result.messages[0].content, /file contents here/);
+    });
+
+    it('indexes bashExecution messages and respects hidden bash output', () => {
+      const filePath = writeSession([
+        { type: 'session', id: 's1', timestamp: '2026-05-03T00:00:00Z', cwd: '/test/project' },
+        {
+          type: 'message',
+          id: 'msg-bash',
+          parentId: null,
+          timestamp: '2026-05-03T00:01:00Z',
+          message: {
+            role: 'bashExecution',
+            command: 'npm test',
+            output: 'all tests passed',
+            exitCode: 0,
+            cancelled: false,
+            truncated: false,
+            timestamp: Date.now(),
+          },
+        },
+        {
+          type: 'message',
+          id: 'msg-hidden-bash',
+          parentId: 'msg-bash',
+          timestamp: '2026-05-03T00:02:00Z',
+          message: {
+            role: 'bashExecution',
+            command: 'security find-generic-password',
+            output: 'secret',
+            exitCode: 0,
+            cancelled: false,
+            truncated: false,
+            excludeFromContext: true,
+            timestamp: Date.now(),
+          },
+        },
+      ]);
+
+      const result = parseSessionFile(filePath);
+      assert.ok(result);
+      assert.strictEqual(result.messages.length, 1);
+      assert.strictEqual(result.messages[0].role, 'bashExecution');
+      assert.strictEqual(result.messages[0].toolCalls?.[0], 'bash');
+      assert.match(result.messages[0].content, /Command: npm test/);
+      assert.match(result.messages[0].content, /all tests passed/);
+      assert.doesNotMatch(result.messages[0].content, /secret/);
+    });
+
+    it('indexes custom messages and summary entries', () => {
+      const filePath = writeSession([
+        { type: 'session', id: 's1', timestamp: '2026-05-03T00:00:00Z', cwd: '/test/project' },
+        {
+          type: 'custom_message',
+          id: 'custom-1',
+          parentId: null,
+          timestamp: '2026-05-03T00:01:00Z',
+          customType: 'demo',
+          content: 'custom context',
+          display: true,
+        },
+        {
+          type: 'compaction',
+          id: 'compact-1',
+          parentId: 'custom-1',
+          timestamp: '2026-05-03T00:02:00Z',
+          summary: 'compacted context',
+          firstKeptEntryId: 'custom-1',
+          tokensBefore: 100,
+        },
+        {
+          type: 'branch_summary',
+          id: 'branch-1',
+          parentId: 'compact-1',
+          timestamp: '2026-05-03T00:03:00Z',
+          fromId: 'custom-1',
+          summary: 'branch context',
+        },
+      ]);
+
+      const result = parseSessionFile(filePath);
+      assert.ok(result);
+      assert.deepStrictEqual(result.messages.map((m) => m.role), ['custom', 'compactionSummary', 'branchSummary']);
+      assert.match(result.messages[0].content, /custom context/);
+      assert.match(result.messages[1].content, /compacted context/);
+      assert.match(result.messages[2].content, /branch context/);
+    });
+
+    it('skips empty messages and non-message state entries', () => {
+      const filePath = writeSession([
+        { type: 'session', id: 's1', timestamp: '2026-05-03T00:00:00Z', cwd: '/test/project' },
+        { type: 'model_change', id: 'mc1', parentId: null, timestamp: '2026-05-03T00:00:01Z' },
+        { type: 'thinking_level_change', id: 'tl1', parentId: null, timestamp: '2026-05-03T00:00:02Z' },
+        { type: 'custom', id: 'c1', parentId: null, timestamp: '2026-05-03T00:00:03Z' },
+        {
           type: 'message',
           id: 'msg-1',
           parentId: null,
           timestamp: '2026-05-03T00:01:00Z',
           message: { role: 'user', content: [], timestamp: Date.now() },
-        }),
-        JSON.stringify({
+        },
+        {
           type: 'message',
           id: 'msg-2',
           parentId: null,
           timestamp: '2026-05-03T00:02:00Z',
           message: { role: 'user', content: [{ type: 'text', text: 'Hello' }], timestamp: Date.now() },
-        }),
-      ];
-      fs.writeFileSync(filePath, lines.join('\n'));
+        },
+      ]);
 
       const result = parseSessionFile(filePath);
       assert.ok(result);
@@ -146,32 +230,10 @@ describe('session-parser', () => {
       assert.strictEqual(result.messages[0].content, 'Hello');
     });
 
-    it('should skip non-message entry types', () => {
-      const filePath = path.join(tmpDir, 'test.jsonl');
-      const lines = [
-        JSON.stringify({ type: 'session', id: 's1', timestamp: '2026-05-03T00:00:00Z', cwd: '/test' }),
-        JSON.stringify({ type: 'model_change', id: 'mc1', parentId: null, timestamp: '2026-05-03T00:00:01Z' }),
-        JSON.stringify({ type: 'thinking_level_change', id: 'tl1', parentId: null, timestamp: '2026-05-03T00:00:02Z' }),
-        JSON.stringify({ type: 'custom', id: 'c1', parentId: null, timestamp: '2026-05-03T00:00:03Z' }),
-        JSON.stringify({
-          type: 'message',
-          id: 'msg-1',
-          parentId: null,
-          timestamp: '2026-05-03T00:01:00Z',
-          message: { role: 'user', content: [{ type: 'text', text: 'Hello' }], timestamp: Date.now() },
-        }),
-      ];
-      fs.writeFileSync(filePath, lines.join('\n'));
-
-      const result = parseSessionFile(filePath);
-      assert.ok(result);
-      assert.strictEqual(result.messages.length, 1);
-    });
-
-    it('should handle malformed JSONL lines gracefully', () => {
+    it('handles malformed JSONL lines gracefully', () => {
       const filePath = path.join(tmpDir, 'test.jsonl');
       const content = [
-        JSON.stringify({ type: 'session', id: 's1', timestamp: '2026-05-03T00:00:00Z', cwd: '/test' }),
+        JSON.stringify({ type: 'session', id: 's1', timestamp: '2026-05-03T00:00:00Z', cwd: '/test/project' }),
         'not valid json',
         '',
         JSON.stringify({
@@ -189,7 +251,7 @@ describe('session-parser', () => {
       assert.strictEqual(result.messages.length, 1);
     });
 
-    it('should return null for empty file', () => {
+    it('returns null for empty file', () => {
       const filePath = path.join(tmpDir, 'empty.jsonl');
       fs.writeFileSync(filePath, '');
 
@@ -197,40 +259,12 @@ describe('session-parser', () => {
       assert.strictEqual(result, null);
     });
 
-    it('should return null if no session entry found', () => {
+    it('returns null if no session entry found', () => {
       const filePath = path.join(tmpDir, 'no-session.jsonl');
       fs.writeFileSync(filePath, JSON.stringify({ type: 'message', id: 'm1' }));
 
       const result = parseSessionFile(filePath);
       assert.strictEqual(result, null);
-    });
-
-    it('should extract text from tool_result content', () => {
-      const filePath = path.join(tmpDir, 'test.jsonl');
-      const lines = [
-        JSON.stringify({ type: 'session', id: 's1', timestamp: '2026-05-03T00:00:00Z', cwd: '/test' }),
-        JSON.stringify({
-          type: 'message',
-          id: 'msg-1',
-          parentId: null,
-          timestamp: '2026-05-03T00:01:00Z',
-          message: {
-            role: 'user',
-            content: [
-              {
-                type: 'tool_result',
-                content: [{ type: 'text', text: 'file contents here' }],
-              },
-            ],
-            timestamp: Date.now(),
-          },
-        }),
-      ];
-      fs.writeFileSync(filePath, lines.join('\n'));
-
-      const result = parseSessionFile(filePath);
-      assert.ok(result);
-      assert.strictEqual(result.messages[0].content, 'file contents here');
     });
   });
 
@@ -241,7 +275,6 @@ describe('session-parser', () => {
     });
 
     it('should find all JSONL files across projects', () => {
-      // Create project directories with JSONL files
       const proj1 = path.join(tmpDir, 'project-a');
       const proj2 = path.join(tmpDir, 'project-b');
       fs.mkdirSync(proj1);

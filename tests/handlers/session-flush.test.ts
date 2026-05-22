@@ -224,6 +224,26 @@ describe("setupSessionFlush", () => {
     assert.equal(opts.timeout, 30000);
   });
 
+  it("Flush includes tool results and bash output", async () => {
+    const config = defaultConfig();
+    setupSessionFlush(mockPi.pi, mockStore, null, config);
+
+    await emitUserTurns(mockPi.handlers, 8);
+
+    const branch = [
+      { type: "message", message: { role: "user", content: [{ type: "text", text: "Run tests" }] } },
+      { type: "message", message: { role: "toolResult", toolName: "bash", content: [{ type: "text", text: "test failed: missing semicolon" }] } },
+      { type: "message", message: { role: "bashExecution", command: "npm test", output: "all tests passed", exitCode: 0, cancelled: false, truncated: false } },
+    ];
+    const ctx = { sessionManager: { getBranch: () => branch } };
+    await emit(mockPi.handlers, "session_before_compact", { signal: undefined }, ctx);
+
+    const flushMessage = mockPi.execCalls[0].args[1][2];
+    assert.match(flushMessage, /\[TOOL_RESULT:bash\]: test failed: missing semicolon/);
+    assert.match(flushMessage, /\[BASH\]: \$ npm test/);
+    assert.match(flushMessage, /all tests passed/);
+  });
+
   it("Flush includes the full conversation by default", async () => {
     const config = defaultConfig();
     setupSessionFlush(mockPi.pi, mockStore, null, config);

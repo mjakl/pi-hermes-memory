@@ -378,6 +378,37 @@ describe("setupCorrectionDetector handler", () => {
     assert.strictEqual(failures[0].category, 'correction');
   });
 
+  it("saves the latest correction and includes tool output context", async () => {
+    const pi = createMockPi();
+    let savedDirective = "";
+    const correctionStore = {
+      ...mockStore,
+      addFailure: async (directive: string) => {
+        savedDirective = directive;
+        return { success: true, target: 'failure', entry_count: 1, message: 'Failure memory saved: correction' };
+      },
+    } as any;
+
+    setupCorrectionDetector(pi, correctionStore, null, config, dbManager);
+
+    const branch = [
+      { type: "message", message: { role: "user", content: [{ type: "text", text: "install deps" }] } },
+      { type: "message", message: { role: "assistant", content: [{ type: "text", text: "I'll use npm." }] } },
+      { type: "message", message: { role: "toolResult", toolName: "bash", content: [{ type: "text", text: "npm failed with lockfile mismatch" }] } },
+      { type: "message", message: { role: "user", content: [{ type: "text", text: "no, use pnpm instead" }] } },
+      { type: "message", message: { role: "assistant", content: [{ type: "text", text: "ok" }] } },
+    ];
+
+    fireMessageEnd("user", "no, use pnpm instead");
+    fireTurnEnd(branch);
+    await settle();
+
+    assert.strictEqual(savedDirective, "use pnpm instead");
+    const prompt = execCalls[0][1][2];
+    assert.match(prompt, /\[TOOL_RESULT:bash\]: npm failed with lockfile mismatch/);
+    assert.match(prompt, /\[USER\]: no, use pnpm instead/);
+  });
+
   it("syncs project correction saves into SQLite with project scope", async () => {
     const pi = createMockPi();
     const correctionStore = {

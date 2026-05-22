@@ -22,6 +22,7 @@
  * See docs/ROADMAP.md for full roadmap and Hermes competitive analysis.
  */
 
+import * as fs from "node:fs";
 import * as path from "node:path";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { MemoryStore } from "./store/memory-store.js";
@@ -204,7 +205,7 @@ export default function (pi: ExtensionAPI) {
   pi.on("session_shutdown", async (_event, ctx) => {
     try {
       const sessionFile = ctx.sessionManager.getSessionFile();
-      if (sessionFile && require("node:fs").existsSync(sessionFile)) {
+      if (sessionFile && fs.existsSync(sessionFile)) {
         const sessionData = parseSessionFile(sessionFile);
         if (sessionData) {
           indexSession(dbManager, sessionData);
