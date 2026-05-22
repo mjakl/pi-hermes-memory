@@ -132,19 +132,6 @@ export class MemoryStore {
     };
   }
 
-  getFailureEntries(maxAgeDays = 7): string[] {
-    const cutoff = new Date();
-    cutoff.setDate(cutoff.getDate() - maxAgeDays);
-    const cutoffStr = cutoff.toISOString().split("T")[0];
-
-    return this.failureEntries
-      .filter((entry) => {
-        const decoded = this.decodeEntry(entry);
-        return decoded.created >= cutoffStr;
-      })
-      .map((entry) => this.stripMetadata(entry));
-  }
-
   private async _add(target: "memory" | "user" | "failure", content: string, signal?: AbortSignal, _retriesLeft = 1): Promise<MemoryResult> {
     content = content.trim();
     if (!content) return { success: false, error: "Content cannot be empty." };
