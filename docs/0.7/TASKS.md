@@ -1,5 +1,7 @@
 # v0.7 Tasks: Token-Aware Graph-Based Memory Retrieval
 
+> v0.7 task notes. Current implemented behavior is documented in `README.md` and `CHANGELOG.md`.
+
 ## Status Legend
 
 - `[ ]` Not started
@@ -10,14 +12,14 @@
 
 Done when full Markdown memory is no longer injected by default.
 
-- [x] `src/types.ts` — add `memoryMode: "policy-only" | "legacy-inject"`
-- [x] `src/config.ts` — parse `memoryMode` with `policy-only` default
+- [x] `src/types.ts` — add `memoryPolicyStyle` and `memoryPolicyCustomText`
+- [x] `src/config.ts` — parse `memoryPolicyStyle` (`full`, `compact`, `custom`, `none`) with `full` default
 - [x] `src/constants.ts` — add expanded `MEMORY_POLICY_PROMPT` with accepted targets/categories
-- [x] `src/index.ts` — replace full memory block injection with memory policy by default
-- [x] Legacy compatibility — support `memoryMode: "legacy-inject"` for old behavior
-- [x] `/memory-preview-context` — show policy-only prompt in default mode and full blocks in legacy mode
-- [x] Tests — system prompt contains policy only in retrieval mode
-- [x] Tests — legacy mode still injects current blocks
+- [x] `src/index.ts` — append memory policy instead of full memory blocks
+- [x] Remove legacy full Markdown prompt injection compatibility paths
+- [x] `/memory-preview-context` — show the active policy context
+- [x] Tests — system prompt contains policy text only, or no policy when configured as `none`
+- [x] Tests — custom and compact policy styles render correctly
 
 ## Epic 2: Memory Router
 
@@ -89,9 +91,8 @@ Done when users can see what memory did and why.
 
 ## Epic 8: Documentation + Release
 
-- [ ] README — document policy-only mode and legacy mode
-- [ ] README — add memory policy and retrieved-memory examples
-- [ ] ROADMAP — mark frozen full injection as legacy, not the future default
+- [x] README — document policy-only mode and policy style options
+- [x] README — add memory policy and retrieved-memory examples
 - [ ] Migration notes — explain how Markdown remains readable/syncable
 - [ ] `npm run check`
 - [ ] `npm test`

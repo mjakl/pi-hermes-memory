@@ -1,7 +1,6 @@
 /**
  * Memory tool — registers the LLM-callable `memory` tool.
  * Ported from hermes-agent/tools/memory_tool.py (MEMORY_SCHEMA + memory_tool dispatch).
- * See PLAN.md → "Hermes Source File Reference Map" for source lines.
  */
 
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";

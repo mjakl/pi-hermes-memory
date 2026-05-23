@@ -1,7 +1,6 @@
 /**
  * Session flush — gives the agent one turn to save memories before context is lost.
  * Ported from hermes-agent/run_agent.py (flush_memories).
- * See PLAN.md → "Hermes Source File Reference Map" for source lines.
  */
 
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";

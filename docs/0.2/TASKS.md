@@ -1,5 +1,7 @@
 # Tasks — v0.2.0: Skills + Smart Curation
 
+> Historical v0.2 task log. Some implementation details were later changed or removed; current behavior is documented in `README.md` and `CHANGELOG.md`.
+
 > **Workflow**: When you start a task, change `[ ]` to `[~]`. When done, change to `[x]` and note the commit hash.
 >
 > **Implementation order**: Epic 2 → Epic 3 → Epic 4 → Epic 1 → Epic 5 (quick wins first, then the largest piece)
@@ -71,7 +73,7 @@ _Done when: the agent can create/update/delete skill documents, skills appear in
 
 ### Research & Design
 - [x] Read Pi's skill discovery API — Pi uses `~/.pi/agent/skills/` with SKILL.md frontmatter format (`c6317dd`)
-- [x] Decide: write to `~/.pi/agent/memory/skills/` — isolated from user skills (`c6317dd`)
+- [x] Decide skill storage — current global skills live under `~/.pi/agent/pi-hermes-memory/skills/`; project skills live under `~/.pi/agent/projects-memory/<project>/skills/` (`c6317dd`, later refined)
 - [x] Read Hermes `skill_manage` tool source for reference patterns (`c6317dd`)
 
 ### Store
@@ -115,7 +117,7 @@ _Done when: v0.2.0 is tagged and released with updated docs._
 
 - [x] Update `README.md` — skill tool, auto-consolidation, correction detection, new config, new commands (`4658529`)
 - [x] Update `src/constants.ts` — verify all new prompts are finalized (`c6317dd`)
-- [x] Update `docs/ROADMAP.md` — v0.2 roadmap documented (`d5b7518`)
+- [x] Update `README.md and CHANGELOG.md` — v0.2 roadmap documented (`d5b7518`)
 - [x] `npm run check` passes with zero errors (`c6317dd`)
 - [x] `npm test` — all 218 tests pass (`83e7c46`)
 - [x] Bump `package.json` version to `0.2.0`
@@ -131,4 +133,4 @@ _Done when: v0.2.0 is tagged and released with updated docs._
 | 3: Correction Detection | HIGH | Low | 2 (src + test) | 3 (types, config, constants, index) |
 | 4: Tool-Call Nudge | MEDIUM | Low | 0 | 3 (types, config, background-review, test) |
 | 1: Skill Tool | CRITICAL | High | 8 (4 src + 4 test) | 3 (constants, index, memory-store) |
-| 5: Documentation | NORMAL | Low | 0 | 4 (README, constants, ROADMAP, package.json) |
+| 5: Documentation | NORMAL | Low | 0 | 4 (README, constants, release docs, package.json) |

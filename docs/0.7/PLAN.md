@@ -1,5 +1,7 @@
 # v0.7 Plan: Token-Aware Graph-Based Memory Retrieval
 
+> v0.7 design notes. Current implemented behavior is documented in `README.md` and `CHANGELOG.md`.
+
 ## Overview
 
 Move runtime memory from "always inject everything" to "policy-only prompt plus explicit memory search."
@@ -116,7 +118,7 @@ Do not use memory_search for generic questions, one-off examples, or explanation
 - memory_search: search durable user, global, project-scoped, and failure memories.
 - session_search: search indexed past conversation messages.
 - memory: save durable user, global, project, and failure memories.
-- skill: list, view, create, patch, edit, and delete procedural skills.
+- skill: view, create, patch, update, and delete procedural skills.
 </available-memory-tools>
 ```
 
@@ -329,14 +331,17 @@ Phase 1 config defaults:
 
 ```json
 {
-  "memoryMode": "policy-only"
+  "memoryPolicyStyle": "full"
 }
 ```
 
-Backward compatibility:
+Current policy configuration:
 
-- Existing users can opt into legacy full prompt injection with `memoryMode: "legacy-inject"`.
-- Default for new installs should be `policy-only`.
+- `memoryPolicyStyle: "full"` uses the detailed built-in memory policy.
+- `memoryPolicyStyle: "compact"` uses shorter guidance.
+- `memoryPolicyStyle: "custom"` uses `memoryPolicyCustomText` when provided.
+- `memoryPolicyStyle: "none"` appends no memory policy.
+- Full Markdown prompt injection compatibility paths have been removed; memory is retrieved on demand through tools.
 - Later automatic retrieval can add fields like `maxRetrievedTokens`, `retrievalTopK`, and `graphEnabled` once router/injection behavior is proven.
 
 ## Success Criteria
@@ -344,6 +349,6 @@ Backward compatibility:
 - First-turn memory token usage drops under 300 tokens by default.
 - Relevant memory can still be found through `memory_search`.
 - The policy clearly explains targets and categories for precise searches.
-- Legacy full injection remains available as an opt-in.
+- Full Markdown memory is no longer injected by default; durable context remains available through search tools.
 - Existing Markdown memory remains readable and syncable.
 - No mandatory automatic retrieval, embeddings, or graph DB dependency is introduced.

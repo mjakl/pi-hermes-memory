@@ -63,13 +63,14 @@ pi install npm:pi-hermes-memory
 
 ### Memory + Skills Architecture
 
-The extension manages three types of knowledge:
+The extension manages four types of knowledge:
 
-| Type | What | Storage | Token cost |
+| Type | What | Storage | Runtime behavior |
 |---|---|---|---|
-| **Memory** (MEMORY.md) | Facts — env details, project conventions, tool quirks | 5,000 chars max | Searchable by default |
-| **User Profile** (USER.md) | Who you are — name, preferences, communication style | 5,000 chars max | Searchable by default |
-| **Skills** (Pi-native `SKILL.md`) | Procedures — *how* to do something, reusable across sessions | Unlimited | Discoverable by Pi + manageable via the skill tool |
+| **Memory** (`MEMORY.md`) | Facts — env details, project conventions, tool quirks | 5,000 chars max | Searchable through `memory_search` |
+| **User Profile** (`USER.md`) | Who you are — name, preferences, communication style | 5,000 chars max | Searchable through `memory_search` |
+| **Failure Memory** (`failures.md`) | Failures, corrections, insights, conventions, tool quirks | 10,000 chars max | Searchable by category |
+| **Skills** (Pi-native `SKILL.md`) | Procedures — *how* to do something, reusable across sessions | Unlimited | Discoverable by Pi + manageable via the `skill` tool |
 
 ![Memory + Skills Architecture](docs/images/memory-architecture.svg)
 
@@ -155,7 +156,7 @@ Agent: "I remember you prefer pnpm over npm. Let me use that."
 
 The agent learns from its mistakes so you don't have to repeat yourself.
 
-Memory blocks are wrapped in `<memory-context>` XML tags with a guard note ("NOT new user input") to prevent the LLM from treating stored facts as instructions.
+By default, full memory blocks are not injected into the system prompt. Retrieved search results are fenced as context and explicitly labeled as stored memory, not new user input.
 
 ## Usage
 
@@ -167,9 +168,11 @@ The agent gets a `memory` tool it can call proactively:
 
 | Action | Target | What it does |
 |---|---|---|
-| `add` | `memory` or `user` | Append a new entry |
-| `replace` | `memory` or `user` | Update an existing entry (matched by substring) |
-| `remove` | `memory` or `user` | Delete an entry (matched by substring) |
+| `add` | `memory`, `user`, `project`, or `failure` | Append a new durable entry |
+| `replace` | `memory`, `user`, `project`, or `failure` | Update an existing entry (matched by substring) |
+| `remove` | `memory`, `user`, `project`, or `failure` | Delete an entry (matched by substring) |
+
+Failure entries can include a `category` (`failure`, `correction`, `insight`, `preference`, `convention`, or `tool-quirk`) plus an optional `failure_reason`.
 
 ### The `skill` Tool
 
@@ -252,8 +255,9 @@ This lets Pi discover project skills as native skills without copying them into 
 |---|---|---|---|
 | **memory** | `MEMORY.md` | Agent's notes — env facts, project conventions, tool quirks, lessons learned | 5,000 chars |
 | **user** | `USER.md` | User profile — name, preferences, communication style, habits | 5,000 chars |
+| **failure** | `failures.md` | Categorized failures, corrections, insights, conventions, tool quirks | 10,000 chars |
 | **skills** | `~/.pi/agent/pi-hermes-memory/skills/<slug>/SKILL.md` or `projects-memory/<project>/skills/<slug>/SKILL.md` | Procedures — *how* to debug, deploy, test, or fix something | Unlimited |
-| **extended** | `sessions.db` | Searchable memories beyond the core limit | Unlimited |
+| **extended** | `sessions.db` | Searchable memories mirrored from Markdown writes/backfills | Unlimited |
 | **sessions** | `sessions.db` | Past conversation history (searchable via FTS5) | Unlimited |
 
 ### Session History Search
@@ -319,13 +323,9 @@ Background review triggers based on **activity level**, not just turn count:
 
 Both counters reset after each review.
 
-### Skill Auto-Extraction
+### Deliberate Skill Creation
 
-After a complex task (8+ tool calls using 2+ different tools in a single turn), the extension automatically asks the agent:
-
-> "This was a complex task — should we save a reusable procedure?"
-
-This means skills build up naturally over time without you having to ask.
+Skills are created by the active agent through the `skill` tool when a reusable procedure is genuinely worth keeping. Background review does **not** auto-create or modify skills; it focuses on memories, failures, and corrections.
 
 ### Commands
 
@@ -434,6 +434,7 @@ Create `~/.pi/agent/hermes-memory-config.json`:
 ├── pi-hermes-memory/      ← Global extension storage root
 │   ├── MEMORY.md          ← Agent's personal notes (env facts, patterns, lessons)
 │   ├── USER.md            ← User profile (name, preferences, habits)
+│   ├── failures.md        ← Categorized failures, corrections, and insights
 │   ├── sessions.db        ← SQLite database (session history + extended memory)
 │   ├── skills/            ← Global extension-managed skills
 │   │   ├── debug-typescript-errors/
@@ -467,7 +468,7 @@ The `sessions.db` SQLite database stores session history and extended memory ent
 - **Core memory limits still apply**: SQLite search mirroring does not bypass the 5,000-char core Markdown limit. If consolidation cannot free space, the write fails instead of becoming SQLite-only memory invisibly.
 - **System prompts are invisible**: Pi's TUI does not display the system prompt. Use `/memory-preview-context` to inspect the injected memory policy.
 - **Project skill visibility depends on Pi discovery cycles**: project skills are exposed through `resources_discover` using the active project's `skills/` path. If a moved or newly created project skill doesn't show up immediately in a running session, trigger a reload/new session so Pi refreshes discovered resources.
-- **Project move requires active project context**: in `/memory-skills`, the `p` hotkey is disabled when Pi is not currently in a detected project directory.
+- **Project move requires active project context**: in `/memory-skills`, moving a skill to project scope requires Pi to be running from a detected project directory.
 - **Skills still need curation**: Skills are saved by the agent through the `skill` tool when it decides a reusable procedure is worth keeping. They may still need review. You can move, delete, or edit them directly in `~/.pi/agent/pi-hermes-memory/skills/` or the active project's `skills/` folder.
 
 ## Architecture
@@ -489,4 +490,4 @@ MIT
 
 ---
 
-**[Full Roadmap →](docs/ROADMAP.md)** · **[Changelog →](CHANGELOG.md)**
+**[Changelog →](CHANGELOG.md)**

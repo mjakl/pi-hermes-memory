@@ -1,5 +1,7 @@
 # v0.3.0 Implementation Plan — Interview + Hardening
 
+> Historical v0.3 implementation plan. Current behavior is documented in `README.md` and `CHANGELOG.md`.
+
 > **Goal**: Give new users immediate value on install, harden the security boundary, prevent memory rot, and polish project-scoped memory.
 >
 > **Why this over Session Search**: Session search (SQLite FTS5, cross-session recall) is a big build with questionable daily ROI. These four epics are smaller, higher-leverage, and address real painpoints: the empty-memory cold start, injection through stored content, stale entries accumulating, and the project-memory feature needing polish before users discover it.
@@ -256,7 +258,7 @@ Aging is always-on. Config options for staleness thresholds can come in v0.4 if 
 ## Epic 5: Documentation & Release
 
 - Update `README.md` — interview command, context fencing, two-tier memory architecture diagram, config additions
-- Update `docs/ROADMAP.md` — mark v0.3 complete, restructure v0.4
+- Update `README.md and CHANGELOG.md` — mark v0.3 complete, restructure v0.4
 - Bump `package.json` version to `0.3.0`
 - `npm run check` passes, all tests pass
 - Tag `v0.3.0`, publish to npm
@@ -287,7 +289,7 @@ Aging is always-on. Config options for staleness thresholds can come in v0.4 if 
 | `tests/handlers/insights.test.ts` | 4 |
 | `tests/handlers/system-prompt.test.ts` | 2, 4 |
 | `README.md` | 4, 5 |
-| `docs/ROADMAP.md` | 5 |
+| `README.md and CHANGELOG.md` | 5 |
 
 ---
 

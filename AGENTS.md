@@ -2,60 +2,52 @@
 
 ## Project Overview
 
-This is a Pi coding agent extension that brings Hermes-style persistent memory and a learning loop to any Pi user. After `pi install`, users get persistent memory across sessions, a background learning loop, and session-end flush.
+This is a Pi coding agent extension that provides persistent memory, session search, categorized failure/correction learning, and Pi-native procedural skills.
 
-**v0.1 is complete** (119 tests, v0.1.0 tagged). Current work is **v0.2: Skills + Smart Curation** — see `docs/0.2/TASKS.md`.
+Current package version: **0.7.11**. The verified local suite currently has **398 tests across 27 test files**.
 
 ## Architecture
 
-- **Language**: TypeScript (loaded via jiti, no compilation needed at runtime)
+- **Language**: TypeScript loaded directly by Pi extension runtime
 - **Runtime**: Pi extension API (`@earendil-works/pi-coding-agent`)
-- **Storage**: Two markdown files (`MEMORY.md`, `USER.md`) in `~/.pi/agent/memory/`
-- **Entry point**: `src/index.ts` — registers tools, event handlers, and commands
+- **Storage**:
+  - Global markdown memory: `~/.pi/agent/pi-hermes-memory/MEMORY.md`, `USER.md`, `failures.md`
+  - SQLite search DB: `~/.pi/agent/pi-hermes-memory/sessions.db`
+  - Project memory: `~/.pi/agent/projects-memory/<project>/MEMORY.md`
+  - Skills: `~/.pi/agent/pi-hermes-memory/skills/` and project-scoped `skills/` folders
+- **Entry point**: `src/index.ts` — registers tools, event handlers, commands, and resource discovery
 
 ## Key Files
 
 | File | Purpose |
-|---|---
-| `src/index.ts` | Extension entry point — wires all components together |
-| `src/types.ts` | Shared TypeScript interfaces + `getMessageText()` helper |
-| `src/constants.ts` | Prompts, defaults, delimiter |
-| `src/store/memory-store.ts` | Core `MemoryStore` class — CRUD, persistence, frozen snapshot |
-| `src/store/content-scanner.ts` | `scanContent()` — injection/exfiltration detection |
-| `src/tools/memory-tool.ts` | `registerMemoryTool()` — LLM tool definition |
-| `src/handlers/background-review.ts` | `setupBackgroundReview()` — learning loop via `pi.exec` |
-| `src/handlers/session-flush.ts` | `setupSessionFlush()` — pre-compaction/shutdown flush |
-| `src/handlers/insights.ts` | `registerInsightsCommand()` — `/memory-insights` command |
-| `PLAN.md` | Full v0.1 implementation plan with Hermes source file reference map |
-| `docs/ROADMAP.md` | Full roadmap with Hermes competitive analysis + gap analysis |
-| `docs/0.2/TASKS.md` | v0.2 task breakdown — Skills + Smart Curation |
+|---|---|
+| `src/index.ts` | Extension entry point — wires stores, tools, handlers, commands, and session indexing |
+| `src/types.ts` | Shared TypeScript interfaces and `getMessageText()` helper |
+| `src/constants.ts` | Prompts, defaults, delimiter, correction patterns, memory policy |
+| `src/config.ts` | User config loading and normalization |
+| `src/paths.ts` | Shared Pi agent path helpers |
+| `src/project.ts` | Project and project-skill path detection |
+| `src/prompt-context.ts` | Policy-only prompt context builder |
+| `src/store/memory-store.ts` | Markdown-backed memory CRUD, metadata, limits, consolidation, FIFO eviction |
+| `src/store/sqlite-memory-store.ts` | SQLite-backed searchable memory mirror/store |
+| `src/store/db.ts` / `src/store/schema.ts` | SQLite database setup and schema |
+| `src/store/session-parser.ts` / `src/store/session-indexer.ts` / `src/store/session-search.ts` | Session JSONL parsing, indexing, and search |
+| `src/store/skill-store.ts` | Pi-native skill CRUD, scope routing, duplicate guards, moves |
+| `src/tools/memory-tool.ts` | LLM `memory` tool |
+| `src/tools/memory-search-tool.ts` | LLM `memory_search` tool |
+| `src/tools/session-search-tool.ts` | LLM `session_search` tool |
+| `src/tools/skill-tool.ts` | LLM `skill` tool |
+| `src/handlers/learn-memory.ts` | `/learn-memory-tool` in-app guide |
 
 ## Design Decisions
 
-1. **Frozen snapshot** — Memory is injected into system prompt once at session start, never mutated mid-session (preserves Pi's prompt caching)
-2. **Atomic writes** — Temp file + `fs.rename()` for crash safety
-3. **`pi.exec()` for background review** — Stays within Pi's intended extension API
-4. **`§` delimiter** — Same as Hermes for consistency
-5. **No SQLite** — Pi has its own `SessionManager`, we read from it directly
-
-## Hermes Source Reference
-
-The implementation is ported from the Hermes agent harness. See `PLAN.md` → "Hermes Source File Reference Map" for exact files and line ranges to read.
-
-## Roadmap & Task Tracking
-
-- **Roadmap**: `docs/ROADMAP.md` — full roadmap with Hermes competitive analysis, gap analysis, and phased plan (v0.1 → v0.5 → v1.0)
-- **v0.1 tasks** (complete): `docs/0.1/TASKS.md`
-- **v0.2 tasks** (current): `docs/0.2/TASKS.md` — Skills, auto-consolidation, correction detection, tool-call-aware nudge
-
-**Workflow:**
-1. Pick a task from `docs/0.2/TASKS.md`
-2. Mark it `[~]` (in progress)
-3. Implement it
-4. Mark it `[x]` (done) with the commit hash
-5. Move to the next task
-
-**Before starting any work, read `docs/0.2/TASKS.md` to see what's next.**
+1. **Policy-only memory by default** — the system prompt receives a memory policy, not full markdown memory dumps.
+2. **Search on demand** — durable memory and session history are available through `memory_search` and `session_search`.
+3. **Markdown source of truth + SQLite mirror** — successful markdown writes are mirrored into SQLite for search; failed markdown writes do not silently become SQLite-only memories.
+4. **Project-scoped memory** — project facts live under `~/.pi/agent/projects-memory/<project>/` and are searchable by project.
+5. **Atomic writes** — temp files next to their target plus `fs.rename()` for crash safety and cross-device safety.
+6. **Content scanning** — memory and skill writes are scanned before persistence.
+7. **Skills are deliberate** — the main agent creates/updates skills through the `skill` tool; background review does not auto-create skills.
 
 ## Development
 
@@ -63,12 +55,27 @@ The implementation is ported from the Hermes agent harness. See `PLAN.md` → "H
 # Type check
 npm run check
 
-# Test locally
+# Run the full test suite
+npm test
+
+# Test locally in Pi
 pi -e ./src/index.ts
 ```
 
 ## Installation (for users)
 
 ```bash
-pi install github:chandra447/pi-hermes-memory
+pi install npm:pi-hermes-memory
 ```
+
+Git install remains available for local testing or unreleased commits:
+
+```bash
+pi install git:github:chandra447/pi-hermes-memory
+```
+
+## Documentation
+
+- `README.md` is the authoritative user-facing documentation.
+- `CHANGELOG.md` tracks release changes.
+- `docs/<version>/` files are historical implementation plans/task notes and may describe the state at the time they were written.

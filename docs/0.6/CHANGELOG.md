@@ -1,5 +1,7 @@
 # v0.6.6 Changelog
 
+> Historical v0.6 release notes. See top-level `CHANGELOG.md` for the consolidated current changelog.
+
 ## Bug Fixes
 
 ### Fix legacy SQLite upgrade error: `no such column: category`

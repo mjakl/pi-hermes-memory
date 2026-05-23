@@ -1,42 +1,48 @@
 graph LR
     subgraph "pi-hermes-memory/src/"
-        IDX["index.ts<br/><i>Entry point</i>"]
+        IDX["index.ts<br/><i>entry point</i>"]
+        CFG["config.ts / paths.ts / project.ts<br/><i>configuration + path detection</i>"]
+        PC["prompt-context.ts<br/><i>memory policy prompt</i>"]
         MS["memory-store.ts<br/><i>Markdown memory CRUD</i>"]
-        SSM["sqlite-memory-store.ts<br/><i>Search mirror + backfill sync</i>"]
-        DB["db.ts<br/><i>sessions.db manager</i>"]
-        SS["skill-store.ts<br/><i>Skill CRUD</i>"]
-        MT["memory-tool.ts<br/><i>Memory LLM tool</i>"]
-        MST["memory-search-tool.ts<br/><i>Search SQLite memory</i>"]
-        ST["skill-tool.ts<br/><i>Skill LLM tool</i>"]
-        CS["content-scanner.ts<br/><i>Security</i>"]
-        BR["background-review.ts<br/><i>Learning loop</i>"]
-        AC["auto-consolidate.ts<br/><i>Memory merge</i>"]
-        CD["correction-detector.ts<br/><i>Instant save</i>"]
-        SF["session-flush.ts<br/><i>Pre-compaction flush</i>"]
-        IN["insights.ts<br/><i>/memory-insights</i>"]
-        SC["skills-command.ts<br/><i>/memory-skills</i>"]
-        SM["sync-markdown-memories.ts<br/><i>/memory-sync-markdown</i>"]
+        SSM["sqlite-memory-store.ts<br/><i>search mirror + backfill</i>"]
+        DB["db.ts + schema.ts<br/><i>sessions.db manager</i>"]
+        SI["session-parser/indexer/search<br/><i>session search pipeline</i>"]
+        SS["skill-store.ts<br/><i>skill CRUD + scope routing</i>"]
+        MT["memory-tool.ts"]
+        MST["memory-search-tool.ts"]
+        SST["session-search-tool.ts"]
+        ST["skill-tool.ts"]
+        CS["content-scanner.ts"]
+        BR["background-review.ts"]
+        AC["auto-consolidate.ts"]
+        CD["correction-detector.ts"]
+        SF["session-flush.ts"]
+        CMD["commands<br/><i>insights, skills, interview, sync, preview</i>"]
     end
 
+    IDX --> CFG
+    IDX --> PC
     IDX --> MS
     IDX --> SSM
     IDX --> DB
+    IDX --> SI
     IDX --> SS
     IDX --> MT
     IDX --> MST
+    IDX --> SST
     IDX --> ST
     IDX --> BR
     IDX --> AC
     IDX --> CD
     IDX --> SF
-    IDX --> IN
-    IDX --> SC
-    IDX --> SM
+    IDX --> CMD
 
     MT --> MS
     MT --> SSM
     MST --> SSM
-    SM --> SSM
+    SSM --> DB
+    SST --> SI
+    SI --> DB
     ST --> SS
     MS --> CS
     SS --> CS
@@ -44,7 +50,7 @@ graph LR
     AC --> MS
     CD --> MS
     CD --> SSM
-    SSM --> DB
+    SF --> MS
 
     style IDX fill:#e94560,stroke:#fff,color:#fff
     style MS fill:#0f3460,stroke:#fff,color:#fff

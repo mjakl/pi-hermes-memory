@@ -1,7 +1,6 @@
 /**
  * MemoryStore — core persistent memory with file-backed storage.
  * Ported from hermes-agent/tools/memory_tool.py (MemoryStore class).
- * See PLAN.md → "Hermes Source File Reference Map" for source lines.
  *
  * Design:
  * - Two stores: MEMORY.md (agent notes) and USER.md (user profile)

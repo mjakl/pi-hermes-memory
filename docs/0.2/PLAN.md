@@ -1,5 +1,7 @@
 # v0.2.0 Implementation Plan — Skills + Smart Curation
 
+> Historical v0.2 implementation plan. Some planned details were later changed or removed; current behavior is documented in `README.md` and `CHANGELOG.md`. Skill creation is now deliberate through the `skill` tool, not an auto-triggered background flow.
+
 > **Goal**: Close the two biggest Hermes gaps — procedural memory (skills) and intelligent memory management (auto-consolidation, correction detection, tool-call-aware nudges).
 
 ## Implementation Order
@@ -172,7 +174,7 @@ export class SkillStore {
 }
 ```
 
-**Storage**: `~/.pi/agent/memory/skills/` (isolated from user skills at `~/.pi/agent/skills/`)
+**Current storage**: global skills live under `~/.pi/agent/pi-hermes-memory/skills/`; project skills live under `~/.pi/agent/projects-memory/<project>/skills/` and are discovered through Pi resources.
 
 **SKILL.md format**:
 ```markdown
@@ -239,7 +241,7 @@ Skill index is captured at `session_start` and injected at `before_agent_start`.
 ## Epic 5: Documentation & Release
 
 - Update `README.md` with new features, config options, commands
-- Update `docs/ROADMAP.md` — mark v0.2 complete
+- Update `README.md and CHANGELOG.md` — mark v0.2 complete
 - Bump `package.json` version to `0.2.0`
 - `npm run check` passes, all tests pass
 - Tag `v0.2.0`

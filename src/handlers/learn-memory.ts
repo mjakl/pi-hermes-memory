@@ -116,7 +116,7 @@ export function registerLearnMemoryCommand(pi: ExtensionAPI): void {
         lines.push("  ║          🔄 How Memory Flows                 ║");
         lines.push("  ╚══════════════════════════════════════════════╝");
         lines.push("");
-        lines.push("  1. Session starts     → Compact memory policy is injected");
+        lines.push("  1. Session starts     → Memory policy is injected");
         lines.push("  2. During conversation → Agent searches memory when useful");
         lines.push("  3. Agent saves        → Markdown memory + best-effort SQLite sync");
         lines.push("  4. Every 10 turns     → Background review saves items");
@@ -147,7 +147,7 @@ export function registerLearnMemoryCommand(pi: ExtensionAPI): void {
         lines.push("  │ session_search(\"auth flow\")         │");
         lines.push("  │ memory_search(\"testing patterns\")   │");
         lines.push("  │ /memory-sync-markdown (backfill old md)│");
-        lines.push("  │ memory_search(\"auth\", cat:\"failure\")│");
+        lines.push("  │ memory_search(\"auth\", category:\"failure\")│");
         lines.push("  └─────────────────────────────────────┘");
       }
 
@@ -169,7 +169,7 @@ export function registerLearnMemoryCommand(pi: ExtensionAPI): void {
         lines.push("    → Check /memory-insights, tell agent \"remember X\"");
         lines.push("");
         lines.push("  \"Want to edit manually\"");
-        lines.push("    → Files at ~/.pi/agent/memory/ (plain markdown)");
+        lines.push("    → Files at ~/.pi/agent/pi-hermes-memory/ and projects-memory/<project>/");
       }
 
       if (lines.length > 0) {

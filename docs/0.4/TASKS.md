@@ -1,5 +1,7 @@
 # v0.4 Tasks: SQLite FTS5 Session Search + Hybrid Memory
 
+> Historical v0.4 task log. Current behavior is documented in `README.md` and `CHANGELOG.md`.
+
 ## Status Legend
 - `[ ]` Not started
 - `[~]` In progress

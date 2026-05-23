@@ -1,5 +1,7 @@
 # Tasks — v0.3.0: Interview + Hardening
 
+> Historical v0.3 task log. Current behavior is documented in `README.md` and `CHANGELOG.md`.
+
 > **Workflow**: When you start a task, change `[ ]` to `[~]`. When done, change to `[x]` and note the commit hash.
 >
 > **Implementation order**: Epic 1 → Epic 2 → Epic 3 → Epic 4 → Epic 5
@@ -105,7 +107,7 @@ _Done when: project-scoped memory is tested, documented, has a visible `/memory-
 _Done when: v0.3.0 is tagged and released with updated docs._
 
 - [ ] Update `README.md` — interview command usage, context fencing note, two-tier memory diagram
-- [ ] Update `docs/ROADMAP.md` — mark v0.3 complete, restructure v0.4 (Session Search + MemoryBackend interface)
+- [ ] Update `README.md and CHANGELOG.md` — mark v0.3 complete, restructure v0.4 (Session Search + MemoryBackend interface)
 - [ ] `npm run check` passes with zero errors
 - [ ] `npm test` — all tests pass (per-file runner)
 - [ ] Bump `package.json` version to `0.3.0`
@@ -122,4 +124,4 @@ _Done when: v0.3.0 is tagged and released with updated docs._
 | 2: Fencing | 🟡 MEDIUM | Low | 0 | 5 (memory-store, skill-store, 3 test files) |
 | 3: Aging | 🟡 MEDIUM | Medium | 0 | 4 (memory-store, constants, memory-tool, test) |
 | 4: Project Polish | 🟢 LOW | Low | 2 (src + test) | 4 (insights, index, system-prompt test, README) |
-| 5: Docs + Release | 🟢 LOW | Low | 0 | 3 (README, ROADMAP, package.json) |
+| 5: Docs + Release | 🟢 LOW | Low | 0 | 3 (README, release docs, package.json) |

@@ -1,5 +1,7 @@
 # v0.5 Tasks: Failure Memory + Categories + Provenance
 
+> Historical v0.6 task log. Current behavior is documented in `README.md` and `CHANGELOG.md`.
+
 ## Status Legend
 - `[ ]` Not started
 - `[~]` In progress

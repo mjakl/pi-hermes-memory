@@ -1,5 +1,7 @@
 # Tasks — Pi Hermes Memory Extension
 
+> Historical v0.1 task log. It records the state at v0.1 and is not the current architecture reference; see `README.md` and `CHANGELOG.md` for current behavior.
+
 > **Workflow**: When you start a task, change `[ ]` to `[~]`. When done, change to `[x]` and note the commit hash.
 > Progress is tracked per-epic. Each epic has a clear definition of done.
 
@@ -9,7 +11,7 @@
 
 _Done when: repo is on GitHub, TypeScript compiles clean, extension loads in Pi without errors._
 
-- [x] `PLAN.md` — Full implementation plan with Hermes source file reference map — `efddcc4`
+- [x] Historical implementation plan (removed from the repo) — `efddcc4`
 - [x] `AGENTS.md` — Project context and architecture docs — `efddcc4`
 - [x] `.gitignore` — Exclude node_modules, dist, .codegraph, hermes-agent — `efddcc4`
 - [x] `package.json` — Minimal config, no runtime deps — `efddcc4`
@@ -189,7 +191,7 @@ _Done when: extension is installable via `pi install` and has user-facing docs._
 **Automated test coverage: 119 tests, 0 failures, 0 type errors.**
 
 **Manual verification required:** Run `pi -e ./src/index.ts` or `pi install github:chandra447/pi-hermes-memory`, then:
-1. Have the LLM save a memory and verify it appears in `~/.pi/agent/memory/MEMORY.md`
+1. Have the LLM save a memory and verify it appears in `~/.pi/agent/pi-hermes-memory/MEMORY.md`
 2. Start a new session (`/new`) and verify the memory appears in the system prompt
 3. Use 10+ turns and verify auto-review triggers
 4. Trigger `/compact` and verify flush saves memories

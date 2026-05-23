@@ -1,5 +1,7 @@
 # v0.5 Plan: Failure Memory + Categories + Provenance
 
+> Historical v0.6 implementation plan. Current policy-only prompt behavior is documented in `README.md`; failures are searchable and not injected as a separate default prompt block.
+
 ## Overview
 
 Track **failures, corrections, and insights** as first-class memories with full provenance and category labels. Learn from failures like humans do.

@@ -1,7 +1,7 @@
 /**
  * Unit tests for MemoryStore — core persistent memory with file-backed storage.
  *
- * Uses real file I/O via the hardcoded ~/.pi/agent/memory/ path.
+ * Uses real file I/O via an isolated temporary memory directory.
  * Each test isolates via beforeEach/afterEach cleanup with aggressive settling.
  */
 

@@ -1,17 +1,23 @@
 flowchart LR
-    A["LLM calls<br/>memory, skill, or failure"] --> B{scanContent}
+    A["LLM calls<br/>memory or skill tool"] --> B{scanContent}
     B -->|Blocked| C["❌ Return error"]
-    B -->|Safe| D{Char limit<br/>check}
-    D -->|Exceeds| E{autoConsolidate?}
-    E -->|Yes| G["🔄 Merge & prune<br/>then retry"]
-    E -->|No| F["❌ Return budget error"]
-    D -->|Within limit| H["✅ Write to disk"]
+    B -->|Safe memory write| D{Markdown<br/>char limit}
+    B -->|Safe skill write| S["✅ Write SKILL.md"]
+
+    D -->|Within limit| H["✅ Atomic Markdown write"]
+    D -->|Exceeds| E{memoryOverflowStrategy}
+    E -->|auto-consolidate| G["🔄 Consolidate<br/>then retry"]
+    E -->|fifo-evict| I["↩️ Rotate older entries"]
+    E -->|reject| F["❌ Return budget error"]
+
+    H --> SQL["Best-effort SQLite sync"]
+    I --> SQL
 
     subgraph "Blocked Patterns"
-        P1["'ignore previous instructions'"]
-        P2["'curl ${API_KEY}'"]
-        P3["Zero-width chars"]
-        P4["Secret patterns<br/>API keys, tokens"]
+        P1["prompt injection text"]
+        P2["secret exfiltration commands"]
+        P3["API keys / tokens"]
+        P4["invisible unicode"]
     end
 
     B -.- P1
@@ -19,22 +25,19 @@ flowchart LR
     B -.- P3
     B -.- P4
 
-    subgraph "Failure Memory"
-        F1["Corrections"]
-        F2["Failures"]
-        F3["Insights"]
-        F4["Conventions"]
+    subgraph "Search Results"
+        R1["memory_search results"]
+        R2["session_search results"]
+        R3["fenced as stored/historical context"]
     end
 
-    H --> F1
-    H --> F2
-    H --> F3
-    H --> F4
+    SQL --> R1
+    R2 --> R3
+    R1 --> R3
 
     style C fill:#3d0000,stroke:#ff4444,color:#fff
     style G fill:#003d3d,stroke:#00cccc,color:#fff
+    style I fill:#3d3000,stroke:#ffd166,color:#fff
     style H fill:#003d00,stroke:#44ff44,color:#fff
-    style F1 fill:#2d1b2e,stroke:#ff6b6b,color:#fff
-    style F2 fill:#2d1b2e,stroke:#ff6b6b,color:#fff
-    style F3 fill:#2d1b2e,stroke:#ff6b6b,color:#fff
-    style F4 fill:#2d1b2e,stroke:#ff6b6b,color:#fff
+    style S fill:#003d00,stroke:#44ff44,color:#fff
+    style SQL fill:#0b525b,stroke:#fff,color:#fff

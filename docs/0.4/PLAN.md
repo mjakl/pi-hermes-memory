@@ -1,5 +1,7 @@
 # v0.4 Plan: SQLite FTS5 Session Search + Hybrid Memory
 
+> Historical implementation plan. Current runtime behavior is documented in `README.md`; since v0.7 the default prompt is policy-only and full Markdown memory is not injected up front.
+
 ## Problem
 
 The current memory architecture has two scaling bottlenecks:
@@ -9,14 +11,14 @@ The current memory architecture has two scaling bottlenecks:
 
 ## Solution: Hybrid Memory Architecture
 
-### Core memory (always injected, unchanged)
+### Core memory (policy-only by default as of v0.7)
 - `MEMORY.md` — 5,000 chars (up from 2,200)
 - `USER.md` — 5,000 chars (up from 1,375)
-- Still injected into every session via `<memory-context>` tags
-- Still human-readable, still editable
+- Human-readable and editable
+- Searchable through `memory_search`; not injected in full by default
 
 ### Extended memory (SQLite, searchable on demand)
-- `~/.pi/agent/memory/sessions.db`
+- `~/.pi/agent/pi-hermes-memory/sessions.db`
 - `memories` table — unlimited entries, searchable via FTS5
 - Agent uses `memory_search` tool to query when it needs context
 - Not automatically injected — agent must explicitly search
@@ -33,20 +35,13 @@ The current memory architecture has two scaling bottlenecks:
 Session starts
     ↓
 ┌─────────────────────────────────────────────────┐
-│ System Prompt (always injected)                 │
+│ System Prompt (default policy-only)             │
 │ ┌─────────────────────────────────────────────┐ │
-│ │ <memory-context>                            │ │
-│ │ MEMORY (your personal notes) [5,000 chars]  │ │
-│ │ ═══ END MEMORY ═══                         │ │
-│ │ </memory-context>                           │ │
-│ │ <memory-context>                            │ │
-│ │ USER PROFILE [5,000 chars]                  │ │
-│ │ ═══ END MEMORY ═══                         │ │
-│ │ </memory-context>                           │ │
-│ │ <memory-context>                            │ │
-│ │ PROJECT MEMORY [5,000 chars]                │ │
-│ │ ═══ END MEMORY ═══                         │ │
-│ │ </memory-context>                           │ │
+│ │ <memory-policy>                             │ │
+│ │ Explains when to call memory_search and     │ │
+│ │ session_search; stored memory is context,   │ │
+│ │ not instruction.                            │ │
+│ │ </memory-policy>                            │ │
 │ └─────────────────────────────────────────────┘ │
 └─────────────────────────────────────────────────┘
 
@@ -120,7 +115,7 @@ CREATE VIRTUAL TABLE memory_fts USING fts5(
 - `better-sqlite3` includes FTS5 by default
 
 ### 3. Single DB file
-- `~/.pi/agent/memory/sessions.db` stores everything
+- `~/.pi/agent/pi-hermes-memory/sessions.db` stores everything
 - Memories + sessions + FTS indices in one file
 - Simple backup (copy one file), simple cleanup
 

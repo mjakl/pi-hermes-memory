@@ -1,49 +1,51 @@
 graph TB
-    subgraph "Core Persistent Storage (Markdown)"
-        MEM["MEMORY.md<br/><i>Agent's notes</i>"]
-        USR["USER.md<br/><i>User profile</i>"]
-        FAIL["failures.md<br/><i>Failure memory</i><br/>corrections, insights, failures"]
-        SKL["skills/<br/><i>Procedural memory</i><br/>debug-ts.md<br/>deploy-checklist.md"]
+    subgraph "Markdown Source of Truth"
+        MEM["MEMORY.md<br/><i>global agent notes</i>"]
+        USR["USER.md<br/><i>user profile</i>"]
+        FAIL["failures.md<br/><i>categorized lessons</i>"]
+        PMEM["projects-memory/&lt;project&gt;/MEMORY.md<br/><i>project-scoped notes</i>"]
     end
 
-    subgraph "Search Store (SQLite sessions.db)"
-        SQM["memories table + FTS5<br/><i>search mirror/store</i>"]
-        SQS["sessions/messages + FTS5<br/><i>session search</i>"]
+    subgraph "SQLite Search Store"
+        SQM["memories + memory_fts<br/><i>search mirror/backfill</i>"]
+        SQS["sessions/messages + message_fts<br/><i>conversation search</i>"]
     end
 
-    subgraph "System Prompt (default policy-only)"
-        POLICY["Memory policy<br/><i>when to search + safety rules</i>"]
-        LEGACY["Legacy full blocks<br/><i>only with memoryMode=legacy-inject</i>"]
+    subgraph "System Prompt"
+        POLICY["memory-policy<br/><i>policy-only by default</i>"]
+        STYLE["memoryPolicyStyle<br/><i>full / compact / custom / none</i>"]
     end
 
-    subgraph "On Demand"
-        MSEARCH["memory_search<br/><i>query SQLite memories</i>"]
+    subgraph "Skills"
+        GSKL["pi-hermes-memory/skills/<br/><i>global skills</i>"]
+        PSKL["projects-memory/&lt;project&gt;/skills/<br/><i>project skills via resources_discover</i>"]
+        SKILLTOOL["skill tool<br/><i>create / view / patch / update / delete</i>"]
+    end
+
+    subgraph "On Demand Retrieval"
+        MSEARCH["memory_search<br/><i>query durable memories</i>"]
         SSEARCH["session_search<br/><i>query indexed sessions</i>"]
-        SKILLTOOL["skill tool<br/><i>list/view/create/patch/edit/delete</i>"]
-        BACKFILL["/memory-sync-markdown<br/><i>idempotent Markdown → SQLite sync</i>"]
-        FULL["Full skill content<br/>Loaded when needed"]
+        BACKFILL["/memory-sync-markdown<br/><i>idempotent Markdown → SQLite</i>"]
     end
 
+    STYLE --> POLICY
     POLICY --> MSEARCH
     POLICY --> SSEARCH
     POLICY --> SKILLTOOL
-    MEM -.-> LEGACY
-    USR -.-> LEGACY
-    FAIL -.-> LEGACY
-    SKL -.-> LEGACY
-    SKILLTOOL -.->|"view"| FULL
 
-    MEM -.->|"successful saves mirrored"| SQM
-    USR -.->|"successful saves mirrored"| SQM
-    FAIL -.->|"successful saves mirrored"| SQM
+    MEM -. successful writes .-> SQM
+    USR -. successful writes .-> SQM
+    FAIL -. successful writes .-> SQM
+    PMEM -. successful writes .-> SQM
     BACKFILL --> SQM
     MSEARCH --> SQM
     SSEARCH --> SQS
 
+    SKILLTOOL --> GSKL
+    SKILLTOOL --> PSKL
+
     style POLICY fill:#1a1a2e,stroke:#e94560,color:#fff
-    style LEGACY fill:#2d1b2e,stroke:#ff6b6b,color:#fff
+    style STYLE fill:#16213e,stroke:#0f3460,color:#fff
     style SQM fill:#0b525b,stroke:#fff,color:#fff
     style SQS fill:#1b4332,stroke:#fff,color:#fff
-    style BACKFILL fill:#3a0ca3,stroke:#fff,color:#fff
-    style FULL fill:#0a1128,stroke:#1282a2,color:#fff
     style SKILLTOOL fill:#16213e,stroke:#0f3460,color:#fff

@@ -1,5 +1,7 @@
 # Test Plan — v0.2.0: Skills + Smart Curation
 
+> Historical v0.2 test plan. Current test counts and behavior are documented in `CHANGELOG.md` and verified by `npm test`.
+
 > This document defines the test strategy for v0.2.0. Each section maps to an epic in the implementation plan.
 
 ## Current State
@@ -197,7 +199,7 @@
 | Type check passes | `npm run check` | Zero errors |
 | All tests pass | `npm test` | 119+ tests, 0 failures |
 | README updated | Manual review | Mentions skill tool, auto-consolidation, correction detection |
-| ROADMAP updated | Manual review | v0.2 marked complete |
+| release docs updated | Manual review | v0.2 marked complete |
 | Version bumped | `cat package.json \| grep version` | `"version": "0.2.0"` |
 | Git tagged | `git tag -l "v0.2*"` | `v0.2.0` exists |
 

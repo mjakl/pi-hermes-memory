@@ -1,11 +1,9 @@
 /**
  * Integration tests — exercise the extension end-to-end.
  *
- * NOTE: Tests that write to ~/.pi/agent/memory/ are excluded because the
- * MemoryStore class hardcodes that path and node:test runs files in parallel,
- * which causes race conditions between test files that share the directory.
- * File-level integration is instead validated by the Epic 1 smoke test
- * (npm run verify in package.json) which runs after all unit tests.
+ * NOTE: This file keeps integration checks focused on cross-module contracts
+ * that do not require Pi runtime state. File-level persistence is covered by
+ * store/tool tests using isolated temporary directories.
  *
  * This file tests cross-module contracts that don't touch disk.
  */
